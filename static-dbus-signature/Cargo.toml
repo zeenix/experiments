@@ -7,3 +7,4 @@ edition = "2021"
 gvariant = []
 
 [dependencies]
+concat_const = "0.1.3"

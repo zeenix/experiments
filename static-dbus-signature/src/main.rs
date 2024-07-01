@@ -14,6 +14,8 @@ pub enum Signature {
     Signature,
     ObjectPath,
     Value,
+    #[cfg(unix)]
+    Fd,
 
     // Container types
     Array {
@@ -30,9 +32,53 @@ pub enum Signature {
     Maybe {
         child: &'static Signature,
     },
-
-    #[cfg(unix)]
-    Fd,
 }
 
-fn main() {}
+impl Signature {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Signature::U8 => "y",
+            Signature::Bool => "b",
+            Signature::I16 => "n",
+            Signature::U16 => "q",
+            Signature::I32 => "i",
+            Signature::U32 => "u",
+            Signature::I64 => "x",
+            Signature::U64 => "t",
+            Signature::F64 => "d",
+            Signature::Str => "s",
+            Signature::Signature => "g",
+            Signature::ObjectPath => "o",
+            Signature::Value => "v",
+            #[cfg(unix)]
+            Signature::Fd => "h",
+            Signature::Array { child } => {
+                concat_const::concat!("a", child.as_str())
+            }
+            Signature::Dict { key, value } => {
+                concat_const::concat!("a{", key.as_str(), value.as_str(), "}")
+            }
+            Signature::Structure { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|f| f.as_str())
+                    .collect::<[]>()
+                    .join("");
+                &format!("({})", fields)
+            }
+            #[cfg(feature = "gvariant")]
+            Signature::Maybe { child } => {
+                let child = child.as_str();
+                concat_const::concat!("m{}", child)
+            }
+        }
+    }
+}
+
+fn main() {
+    let sig = Signature::Array {
+        child: &Signature::I32,
+    };
+
+    println!("{}", sig.as_str());
+}
