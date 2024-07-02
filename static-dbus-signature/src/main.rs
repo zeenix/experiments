@@ -34,7 +34,7 @@ pub enum Signature {
     },
 }
 
-impl Signature {
+/*impl Signature {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Signature::U8 => "y",
@@ -73,7 +73,7 @@ impl Signature {
             }
         }
     }
-}
+}*/
 
 pub trait Type {
     const SIGNATURE: Signature;
@@ -97,5 +97,5 @@ fn main() {
         child: &Signature::I32,
     };
 
-    println!("{}", sig.as_str());
+    //println!("{}", sig.as_str());
 }
