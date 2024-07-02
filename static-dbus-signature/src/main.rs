@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy)]
-pub enum Signature {
+pub enum Signature<'s> {
     // Simple types
     U8,
     Bool,
@@ -19,18 +19,18 @@ pub enum Signature {
 
     // Container types
     Array {
-        child: &'static Signature,
+        child: &'s Signature<'s>,
     },
     Dict {
-        key: &'static Signature,
-        value: &'static Signature,
+        key: &'s Signature<'s>,
+        value: &'s Signature<'s>,
     },
     Structure {
-        fields: &'static [Signature],
+        fields: &'s [Signature<'s>],
     },
     #[cfg(feature = "gvariant")]
     Maybe {
-        child: &'static Signature,
+        child: &'s Signature<'s>,
     },
 }
 
@@ -76,26 +76,63 @@ pub enum Signature {
 }*/
 
 pub trait Type {
-    const SIGNATURE: Signature;
+    const SIGNATURE: Signature<'static>;
+}
+
+impl<T> Type for &T
+where
+    T: Type + ?Sized,
+{
+    const SIGNATURE: Signature<'static> = T::SIGNATURE;
 }
 
 impl<T: Type> Type for [T] {
-    const SIGNATURE: Signature = Signature::Array {
+    const SIGNATURE: Signature<'static> = Signature::Array {
         child: &T::SIGNATURE,
     };
 }
 
 impl<T: Type> Type for (T,) {
-    const SIGNATURE: Signature = Signature::Structure {
+    const SIGNATURE: Signature<'static> = Signature::Structure {
         fields: &[T::SIGNATURE],
     };
 }
 // TODO: Use a macro for for generating all tuple impls
 
+impl Type for i32 {
+    const SIGNATURE: Signature<'static> = Signature::I32;
+}
+
+pub trait DynamicType {
+    fn signature(&self) -> Signature<'_>;
+}
+
+struct Structure<'s> {
+    fields: Vec<Signature<'s>>,
+}
+
+impl Structure<'_> {
+    pub fn new() -> Self {
+        Self { fields: Vec::new() }
+    }
+
+    pub fn field<T: Type + ?Sized>(mut self) -> Self {
+        self.fields.push(T::SIGNATURE);
+
+        self
+    }
+}
+
+impl DynamicType for Structure<'_> {
+    fn signature(&self) -> Signature<'_> {
+        Signature::Structure {
+            fields: &self.fields,
+        }
+    }
+}
+
 fn main() {
-    let sig = Signature::Array {
-        child: &Signature::I32,
-    };
+    let sig = Structure::new().field::<i32>().field::<&[&[i32]]>();
 
     //println!("{}", sig.as_str());
 }
