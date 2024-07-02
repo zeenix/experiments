@@ -75,6 +75,23 @@ impl Signature {
     }
 }
 
+pub trait Type {
+    const SIGNATURE: Signature;
+}
+
+impl<T: Type> Type for [T] {
+    const SIGNATURE: Signature = Signature::Array {
+        child: &T::SIGNATURE,
+    };
+}
+
+impl<T: Type> Type for (T,) {
+    const SIGNATURE: Signature = Signature::Structure {
+        fields: &[T::SIGNATURE],
+    };
+}
+// TODO: Use a macro for for generating all tuple impls
+
 fn main() {
     let sig = Signature::Array {
         child: &Signature::I32,
