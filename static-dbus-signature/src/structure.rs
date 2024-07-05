@@ -14,7 +14,7 @@ impl Structure {
     }
 
     pub fn field<T: Type + ?Sized>(mut self) -> Self {
-        self.fields.push(T::SIGNATURE);
+        self.fields.push(T::SIGNATURE.clone());
 
         self
     }

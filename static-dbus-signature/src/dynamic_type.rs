@@ -9,6 +9,6 @@ where
     T: Type,
 {
     fn signature(&self) -> Signature {
-        T::SIGNATURE
+        T::SIGNATURE.clone()
     }
 }
