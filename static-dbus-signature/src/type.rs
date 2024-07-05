@@ -1,29 +1,27 @@
-use crate::signature::Signature;
+use crate::signature::{Signature, StructSignature};
 
 pub trait Type {
-    const SIGNATURE: Signature<'static>;
+    const SIGNATURE: Signature;
 }
 
 impl<T> Type for &T
 where
     T: Type + ?Sized,
 {
-    const SIGNATURE: Signature<'static> = T::SIGNATURE;
+    const SIGNATURE: Signature = T::SIGNATURE;
 }
 
 impl<T: Type> Type for [T] {
-    const SIGNATURE: Signature<'static> = Signature::Array {
+    const SIGNATURE: Signature = Signature::Array {
         child: &T::SIGNATURE,
     };
 }
 
 impl<T: Type> Type for (T,) {
-    const SIGNATURE: Signature<'static> = Signature::Structure {
-        fields: &[T::SIGNATURE],
-    };
+    const SIGNATURE: Signature = Signature::Structure(StructSignature::Static(&[&T::SIGNATURE]));
 }
 // TODO: Use a macro for for generating all tuple impls
 
 impl Type for i32 {
-    const SIGNATURE: Signature<'static> = Signature::I32;
+    const SIGNATURE: Signature = Signature::I32;
 }

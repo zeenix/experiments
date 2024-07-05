@@ -1,5 +1,5 @@
-#[derive(Debug, Clone, Copy)]
-pub enum Signature<'s> {
+#[derive(Debug, Clone)]
+pub enum Signature {
     // Simple types
     U8,
     Bool,
@@ -19,18 +19,16 @@ pub enum Signature<'s> {
 
     // Container types
     Array {
-        child: &'s Signature<'s>,
+        child: &'static Signature,
     },
     Dict {
-        key: &'s Signature<'s>,
-        value: &'s Signature<'s>,
+        key: &'static Signature,
+        value: &'static Signature,
     },
-    Structure {
-        fields: &'s [Signature<'s>],
-    },
+    Structure(StructSignature),
     #[cfg(feature = "gvariant")]
     Maybe {
-        child: &'s Signature<'s>,
+        child: &'static Signature,
     },
 }
 
@@ -74,3 +72,9 @@ pub enum Signature<'s> {
         }
     }
 }*/
+
+#[derive(Debug, Clone)]
+pub enum StructSignature {
+    Static(&'static [&'static Signature]),
+    Dynamic(Vec<Signature>),
+}

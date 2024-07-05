@@ -1,10 +1,14 @@
-use crate::{dynamic_type::DynamicType, r#type::Type, signature::Signature};
+use crate::{
+    dynamic_type::DynamicType,
+    r#type::Type,
+    signature::{Signature, StructSignature},
+};
 
-pub struct Structure<'s> {
-    fields: Vec<Signature<'s>>,
+pub struct Structure {
+    fields: Vec<Signature>,
 }
 
-impl Structure<'_> {
+impl Structure {
     pub fn new() -> Self {
         Self { fields: Vec::new() }
     }
@@ -16,10 +20,9 @@ impl Structure<'_> {
     }
 }
 
-impl DynamicType for Structure<'_> {
-    fn signature(&self) -> Signature<'_> {
-        Signature::Structure {
-            fields: &self.fields,
-        }
+impl DynamicType for Structure {
+    fn signature(&self) -> Signature {
+        // NOT nice to have to clone here. :(
+        Signature::Structure(StructSignature::Dynamic(self.fields.clone()))
     }
 }
