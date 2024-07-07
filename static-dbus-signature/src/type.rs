@@ -18,27 +18,24 @@ impl<T: Type> Type for [T] {
 }
 
 impl<A: Type> Type for (A,) {
-    const SIGNATURE: &'static Signature =
-        &Signature::Structure(StructSignature::Static(&[A::SIGNATURE]));
+    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+        fields: &[A::SIGNATURE],
+    });
 }
 impl<A: Type, B: Type> Type for (A, B) {
-    const SIGNATURE: &'static Signature =
-        &Signature::Structure(StructSignature::Static(&[A::SIGNATURE, B::SIGNATURE]));
+    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+        fields: &[A::SIGNATURE, B::SIGNATURE],
+    });
 }
 impl<A: Type, B: Type, C: Type> Type for (A, B, C) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static(&[
-        A::SIGNATURE,
-        B::SIGNATURE,
-        C::SIGNATURE,
-    ]));
+    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+        fields: &[A::SIGNATURE, B::SIGNATURE, C::SIGNATURE],
+    });
 }
 impl<A: Type, B: Type, C: Type, D: Type> Type for (A, B, C, D) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static(&[
-        A::SIGNATURE,
-        B::SIGNATURE,
-        C::SIGNATURE,
-        D::SIGNATURE,
-    ]));
+    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+        fields: &[A::SIGNATURE, B::SIGNATURE, C::SIGNATURE, D::SIGNATURE],
+    });
 }
 // TODO: Use a macro for for generating all tuple impls
 
@@ -76,16 +73,18 @@ mod tests {
         let sig = <(i32, &str, &[&[i32]], bool)>::SIGNATURE;
         assert_eq!(
             sig,
-            &Signature::Structure(StructSignature::Dynamic(vec![
-                Signature::I32,
-                Signature::Str,
-                Signature::Array {
-                    child: &Signature::Array {
-                        child: &Signature::I32
-                    }
-                },
-                Signature::Bool
-            ]))
+            &Signature::Structure(StructSignature::Dynamic {
+                fields: vec![
+                    Signature::I32,
+                    Signature::Str,
+                    Signature::Array {
+                        child: &Signature::Array {
+                            child: &Signature::I32
+                        }
+                    },
+                    Signature::Bool
+                ]
+            })
         );
         assert_eq!(sig.to_string(), "(isaaib)");
     }

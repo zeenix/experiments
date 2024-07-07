@@ -77,8 +77,12 @@ impl Display for Signature {
 
 #[derive(Debug, Clone, Eq, Ord)]
 pub enum StructSignature {
-    Static(&'static [&'static Signature]),
-    Dynamic(Vec<Signature>),
+    Static {
+        fields: &'static [&'static Signature],
+    },
+    Dynamic {
+        fields: Vec<Signature>,
+    },
 }
 
 impl StructSignature {
@@ -102,8 +106,8 @@ impl StructSignature {
         }
 
         match self {
-            StructSignature::Static(fields) => Fields::Static(fields.iter()),
-            StructSignature::Dynamic(fields) => Fields::Dynamic(fields.iter()),
+            StructSignature::Static { fields } => Fields::Static(fields.iter()),
+            StructSignature::Dynamic { fields } => Fields::Dynamic(fields.iter()),
         }
     }
 }

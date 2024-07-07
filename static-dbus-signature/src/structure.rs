@@ -23,6 +23,8 @@ impl Structure {
 impl DynamicType for Structure {
     fn signature(&self) -> Signature {
         // NOT nice to have to clone here. :(
-        Signature::Structure(StructSignature::Dynamic(self.fields.clone()))
+        Signature::Structure(StructSignature::Dynamic {
+            fields: self.fields.clone(),
+        })
     }
 }
