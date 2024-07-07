@@ -1,7 +1,7 @@
 use core::fmt;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone)]
 pub enum Signature {
     // Simple types
     U8,
@@ -68,7 +68,76 @@ impl Display for Signature {
     }
 }
 
-#[derive(Debug, Clone, Eq, Ord)]
+impl PartialEq for Signature {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Signature::U8, Signature::U8)
+            | (Signature::Bool, Signature::Bool)
+            | (Signature::I16, Signature::I16)
+            | (Signature::U16, Signature::U16)
+            | (Signature::I32, Signature::I32)
+            | (Signature::U32, Signature::U32)
+            | (Signature::I64, Signature::I64)
+            | (Signature::U64, Signature::U64)
+            | (Signature::F64, Signature::F64)
+            | (Signature::Str, Signature::Str)
+            | (Signature::Signature, Signature::Signature)
+            | (Signature::ObjectPath, Signature::ObjectPath)
+            | (Signature::Value, Signature::Value)
+            | (Signature::Fd, Signature::Fd) => true,
+            (Signature::Array(a), Signature::Array(b)) => a.child() == b.child(),
+            (Signature::Dict(a), Signature::Dict(b)) => {
+                a.key() == b.key() && a.value() == b.value()
+            }
+            (Signature::Structure(a), Signature::Structure(b)) => a.fields().eq(b.fields()),
+            #[cfg(feature = "gvariant")]
+            (Signature::Maybe(a), Signature::Maybe(b)) => a.child() == b.child(),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Signature {}
+
+impl PartialOrd for Signature {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Signature::U8, Signature::U8)
+            | (Signature::Bool, Signature::Bool)
+            | (Signature::I16, Signature::I16)
+            | (Signature::U16, Signature::U16)
+            | (Signature::I32, Signature::I32)
+            | (Signature::U32, Signature::U32)
+            | (Signature::I64, Signature::I64)
+            | (Signature::U64, Signature::U64)
+            | (Signature::F64, Signature::F64)
+            | (Signature::Str, Signature::Str)
+            | (Signature::Signature, Signature::Signature)
+            | (Signature::ObjectPath, Signature::ObjectPath)
+            | (Signature::Value, Signature::Value)
+            | (Signature::Fd, Signature::Fd) => Some(std::cmp::Ordering::Equal),
+            (Signature::Array(a), Signature::Array(b)) => a.child().partial_cmp(b.child()),
+            (Signature::Dict(a), Signature::Dict(b)) => match a.key().partial_cmp(b.key()) {
+                Some(std::cmp::Ordering::Equal) => a.value().partial_cmp(b.value()),
+                other => other,
+            },
+            (Signature::Structure(a), Signature::Structure(b)) => {
+                a.fields().partial_cmp(b.fields())
+            }
+            #[cfg(feature = "gvariant")]
+            (Signature::Maybe(a), Signature::Maybe(b)) => a.child().partial_cmp(b.child()),
+            (a, b) => a.to_string().partial_cmp(&b.to_string()),
+        }
+    }
+}
+
+impl Ord for Signature {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum StructSignature {
     Static {
         fields: &'static [&'static Signature],
@@ -105,34 +174,10 @@ impl StructSignature {
     }
 }
 
-impl PartialEq for StructSignature {
-    fn eq(&self, other: &Self) -> bool {
-        self.fields().eq(other.fields())
-    }
-}
-
-impl PartialOrd for StructSignature {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.fields().partial_cmp(other.fields())
-    }
-}
-
-#[derive(Debug, Clone, Eq, Ord)]
+#[derive(Debug, Clone)]
 pub enum ArraySignature {
     Static { child: &'static Signature },
     Dynamic { child: Box<Signature> },
-}
-
-impl PartialEq for ArraySignature {
-    fn eq(&self, other: &Self) -> bool {
-        self.child() == other.child()
-    }
-}
-
-impl PartialOrd for ArraySignature {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.child().partial_cmp(other.child())
-    }
 }
 
 impl ArraySignature {
@@ -144,7 +189,7 @@ impl ArraySignature {
     }
 }
 
-#[derive(Debug, Clone, Eq, Ord)]
+#[derive(Debug, Clone)]
 pub enum DictSignature {
     Static {
         key: &'static Signature,
@@ -154,21 +199,6 @@ pub enum DictSignature {
         key: Box<Signature>,
         value: Box<Signature>,
     },
-}
-
-impl PartialEq for DictSignature {
-    fn eq(&self, other: &Self) -> bool {
-        self.key() == other.key() && self.value() == other.value()
-    }
-}
-
-impl PartialOrd for DictSignature {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.key().partial_cmp(other.key()) {
-            Some(std::cmp::Ordering::Equal) => self.value().partial_cmp(other.value()),
-            other => other,
-        }
-    }
 }
 
 impl DictSignature {
@@ -188,24 +218,10 @@ impl DictSignature {
 }
 
 #[cfg(feature = "gvariant")]
-#[derive(Debug, Clone, Eq, Ord)]
+#[derive(Debug, Clone)]
 pub enum MaybeSignature {
     Static { child: &'static Signature },
     Dynamic { child: Box<Signature> },
-}
-
-#[cfg(feature = "gvariant")]
-impl PartialEq for MaybeSignature {
-    fn eq(&self, other: &Self) -> bool {
-        self.child() == other.child()
-    }
-}
-
-#[cfg(feature = "gvariant")]
-impl PartialOrd for MaybeSignature {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.child().partial_cmp(other.child())
-    }
 }
 
 #[cfg(feature = "gvariant")]
