@@ -51,3 +51,42 @@ impl Type for &str {
 impl Type for bool {
     const SIGNATURE: &'static Signature = &Signature::Bool;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_signature() {
+        // i32
+        assert_eq!(i32::SIGNATURE, &Signature::I32);
+        assert_eq!(i32::SIGNATURE.to_string(), "i");
+
+        // Array of i32
+        let sig = <&[i32]>::SIGNATURE;
+        assert_eq!(
+            sig,
+            &Signature::Array {
+                child: &Signature::I32
+            }
+        );
+        assert_eq!(sig.to_string(), "ai");
+
+        // Structure of (i32, &str, &[&[i32]], bool)
+        let sig = <(i32, &str, &[&[i32]], bool)>::SIGNATURE;
+        assert_eq!(
+            sig,
+            &Signature::Structure(StructSignature::Dynamic(vec![
+                Signature::I32,
+                Signature::Str,
+                Signature::Array {
+                    child: &Signature::Array {
+                        child: &Signature::I32
+                    }
+                },
+                Signature::Bool
+            ]))
+        );
+        assert_eq!(sig.to_string(), "(isaaib)");
+    }
+}
