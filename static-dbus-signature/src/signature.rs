@@ -1,3 +1,6 @@
+use core::fmt;
+use std::fmt::{Display, Formatter};
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Signature {
     // Simple types
@@ -32,49 +35,76 @@ pub enum Signature {
     },
 }
 
-/*impl Signature {
-    pub const fn as_str(&self) -> &'static str {
+impl Display for Signature {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Signature::U8 => "y",
-            Signature::Bool => "b",
-            Signature::I16 => "n",
-            Signature::U16 => "q",
-            Signature::I32 => "i",
-            Signature::U32 => "u",
-            Signature::I64 => "x",
-            Signature::U64 => "t",
-            Signature::F64 => "d",
-            Signature::Str => "s",
-            Signature::Signature => "g",
-            Signature::ObjectPath => "o",
-            Signature::Value => "v",
+            Signature::U8 => write!(f, "y"),
+            Signature::Bool => write!(f, "b"),
+            Signature::I16 => write!(f, "n"),
+            Signature::U16 => write!(f, "q"),
+            Signature::I32 => write!(f, "i"),
+            Signature::U32 => write!(f, "u"),
+            Signature::I64 => write!(f, "x"),
+            Signature::U64 => write!(f, "t"),
+            Signature::F64 => write!(f, "d"),
+            Signature::Str => write!(f, "s"),
+            Signature::Signature => write!(f, "g"),
+            Signature::ObjectPath => write!(f, "o"),
+            Signature::Value => write!(f, "v"),
             #[cfg(unix)]
-            Signature::Fd => "h",
-            Signature::Array { child } => {
-                concat_const::concat!("a", child.as_str())
-            }
+            Signature::Fd => write!(f, "h"),
+            Signature::Array { child } => write!(f, "a{}", child),
             Signature::Dict { key, value } => {
-                concat_const::concat!("a{", key.as_str(), value.as_str(), "}")
+                write!(f, "a{{")?;
+
+                key.fmt(f)?;
+                value.fmt(f)?;
+
+                write!(f, "}}")
             }
-            Signature::Structure { fields } => {
-                let fields = fields
-                    .iter()
-                    .map(|f| f.as_str())
-                    .collect::<[]>()
-                    .join("");
-                &format!("({})", fields)
+            Signature::Structure(structure) => {
+                write!(f, "(")?;
+                for field in structure.fields() {
+                    field.fmt(f)?;
+                }
+                write!(f, ")")
             }
             #[cfg(feature = "gvariant")]
-            Signature::Maybe { child } => {
-                let child = child.as_str();
-                concat_const::concat!("m{}", child)
-            }
+            Signature::Maybe { child } => write!(f, "m{}", child),
         }
     }
-}*/
+}
 
+// FIXME: Ensure both variants are considered equal.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StructSignature {
     Static(&'static [&'static Signature]),
     Dynamic(Vec<Signature>),
+}
+
+impl StructSignature {
+    pub fn fields(&self) -> impl Iterator<Item = &Signature> {
+        use std::slice::Iter;
+
+        enum Fields<'a> {
+            Static(Iter<'static, &'static Signature>),
+            Dynamic(Iter<'a, Signature>),
+        }
+
+        impl<'a> Iterator for Fields<'a> {
+            type Item = &'a Signature;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                match self {
+                    Fields::Static(iter) => iter.next().map(|&f| f),
+                    Fields::Dynamic(iter) => iter.next(),
+                }
+            }
+        }
+
+        match self {
+            StructSignature::Static(fields) => Fields::Static(fields.iter()),
+            StructSignature::Dynamic(fields) => Fields::Dynamic(fields.iter()),
+        }
+    }
 }
