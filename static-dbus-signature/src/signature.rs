@@ -75,8 +75,7 @@ impl Display for Signature {
     }
 }
 
-// FIXME: Ensure both variants are considered equal.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, Ord)]
 pub enum StructSignature {
     Static(&'static [&'static Signature]),
     Dynamic(Vec<Signature>),
@@ -106,5 +105,17 @@ impl StructSignature {
             StructSignature::Static(fields) => Fields::Static(fields.iter()),
             StructSignature::Dynamic(fields) => Fields::Dynamic(fields.iter()),
         }
+    }
+}
+
+impl PartialEq for StructSignature {
+    fn eq(&self, other: &Self) -> bool {
+        self.fields().eq(other.fields())
+    }
+}
+
+impl PartialOrd for StructSignature {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.fields().partial_cmp(other.fields())
     }
 }
