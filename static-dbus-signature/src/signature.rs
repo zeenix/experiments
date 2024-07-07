@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Signature {
     // Simple types
     U8,
@@ -73,7 +73,7 @@ pub enum Signature {
     }
 }*/
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StructSignature {
     Static(&'static [&'static Signature]),
     Dynamic(Vec<Signature>),
