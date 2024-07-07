@@ -1,4 +1,4 @@
-use crate::signature::{Signature, StructSignature};
+use crate::signature::{ArraySignature, Signature, StructSignature};
 
 pub trait Type {
     const SIGNATURE: &'static Signature;
@@ -12,9 +12,9 @@ where
 }
 
 impl<T: Type> Type for [T] {
-    const SIGNATURE: &'static Signature = &Signature::Array {
+    const SIGNATURE: &'static Signature = &Signature::Array(ArraySignature::Static {
         child: &T::SIGNATURE,
-    };
+    });
 }
 
 impl<A: Type> Type for (A,) {
@@ -63,9 +63,9 @@ mod tests {
         let sig = <&[i32]>::SIGNATURE;
         assert_eq!(
             sig,
-            &Signature::Array {
+            &Signature::Array(ArraySignature::Static {
                 child: &Signature::I32
-            }
+            })
         );
         assert_eq!(sig.to_string(), "ai");
 
@@ -77,11 +77,11 @@ mod tests {
                 fields: vec![
                     Signature::I32,
                     Signature::Str,
-                    Signature::Array {
-                        child: &Signature::Array {
-                            child: &Signature::I32
-                        }
-                    },
+                    Signature::Array(ArraySignature::Dynamic {
+                        child: Box::new(Signature::Array(ArraySignature::Static {
+                            child: &Signature::I32,
+                        })),
+                    }),
                     Signature::Bool
                 ]
             })

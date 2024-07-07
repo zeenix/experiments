@@ -21,18 +21,11 @@ pub enum Signature {
     Fd,
 
     // Container types
-    Array {
-        child: &'static Signature,
-    },
-    Dict {
-        key: &'static Signature,
-        value: &'static Signature,
-    },
+    Array(ArraySignature),
+    Dict(DictSignature),
     Structure(StructSignature),
     #[cfg(feature = "gvariant")]
-    Maybe {
-        child: &'static Signature,
-    },
+    Maybe(MaybeSignature),
 }
 
 impl Display for Signature {
@@ -53,12 +46,12 @@ impl Display for Signature {
             Signature::Value => write!(f, "v"),
             #[cfg(unix)]
             Signature::Fd => write!(f, "h"),
-            Signature::Array { child } => write!(f, "a{}", child),
-            Signature::Dict { key, value } => {
+            Signature::Array(array) => write!(f, "a{}", array.child()),
+            Signature::Dict(dict) => {
                 write!(f, "a{{")?;
 
-                key.fmt(f)?;
-                value.fmt(f)?;
+                dict.key().fmt(f)?;
+                dict.value().fmt(f)?;
 
                 write!(f, "}}")
             }
@@ -70,7 +63,7 @@ impl Display for Signature {
                 write!(f, ")")
             }
             #[cfg(feature = "gvariant")]
-            Signature::Maybe { child } => write!(f, "m{}", child),
+            Signature::Maybe(maybe) => write!(f, "m{}", maybe.child()),
         }
     }
 }
@@ -121,5 +114,106 @@ impl PartialEq for StructSignature {
 impl PartialOrd for StructSignature {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.fields().partial_cmp(other.fields())
+    }
+}
+
+#[derive(Debug, Clone, Eq, Ord)]
+pub enum ArraySignature {
+    Static { child: &'static Signature },
+    Dynamic { child: Box<Signature> },
+}
+
+impl PartialEq for ArraySignature {
+    fn eq(&self, other: &Self) -> bool {
+        self.child() == other.child()
+    }
+}
+
+impl PartialOrd for ArraySignature {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.child().partial_cmp(other.child())
+    }
+}
+
+impl ArraySignature {
+    pub fn child(&self) -> &Signature {
+        match self {
+            ArraySignature::Static { child } => child,
+            ArraySignature::Dynamic { child } => child,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, Ord)]
+pub enum DictSignature {
+    Static {
+        key: &'static Signature,
+        value: &'static Signature,
+    },
+    Dynamic {
+        key: Box<Signature>,
+        value: Box<Signature>,
+    },
+}
+
+impl PartialEq for DictSignature {
+    fn eq(&self, other: &Self) -> bool {
+        self.key() == other.key() && self.value() == other.value()
+    }
+}
+
+impl PartialOrd for DictSignature {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.key().partial_cmp(other.key()) {
+            Some(std::cmp::Ordering::Equal) => self.value().partial_cmp(other.value()),
+            other => other,
+        }
+    }
+}
+
+impl DictSignature {
+    pub fn key(&self) -> &Signature {
+        match self {
+            DictSignature::Static { key, .. } => key,
+            DictSignature::Dynamic { key, .. } => key,
+        }
+    }
+
+    pub fn value(&self) -> &Signature {
+        match self {
+            DictSignature::Static { value, .. } => value,
+            DictSignature::Dynamic { value, .. } => value,
+        }
+    }
+}
+
+#[cfg(feature = "gvariant")]
+#[derive(Debug, Clone, Eq, Ord)]
+pub enum MaybeSignature {
+    Static { child: &'static Signature },
+    Dynamic { child: Box<Signature> },
+}
+
+#[cfg(feature = "gvariant")]
+impl PartialEq for MaybeSignature {
+    fn eq(&self, other: &Self) -> bool {
+        self.child() == other.child()
+    }
+}
+
+#[cfg(feature = "gvariant")]
+impl PartialOrd for MaybeSignature {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.child().partial_cmp(other.child())
+    }
+}
+
+#[cfg(feature = "gvariant")]
+impl MaybeSignature {
+    pub fn child(&self) -> &Signature {
+        match self {
+            MaybeSignature::Static { child } => child,
+            MaybeSignature::Dynamic { child } => child,
+        }
     }
 }
