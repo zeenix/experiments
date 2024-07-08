@@ -52,6 +52,7 @@ impl Type for bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn test_signature() {
@@ -78,12 +79,13 @@ mod tests {
                     Signature::I32,
                     Signature::Str,
                     Signature::Array(ArraySignature::Dynamic {
-                        child: Box::new(Signature::Array(ArraySignature::Static {
+                        child: Arc::new(Signature::Array(ArraySignature::Static {
                             child: &Signature::I32,
                         })),
                     }),
                     Signature::Bool
                 ]
+                .into()
             })
         );
         assert_eq!(sig.to_string(), "(isaaib)");

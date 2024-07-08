@@ -1,5 +1,6 @@
 use core::fmt;
 use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum Signature {
@@ -143,7 +144,7 @@ pub enum StructSignature {
         fields: &'static [&'static Signature],
     },
     Dynamic {
-        fields: Vec<Signature>,
+        fields: Arc<[Signature]>,
     },
 }
 
@@ -177,7 +178,7 @@ impl StructSignature {
 #[derive(Debug, Clone)]
 pub enum ArraySignature {
     Static { child: &'static Signature },
-    Dynamic { child: Box<Signature> },
+    Dynamic { child: Arc<Signature> },
 }
 
 impl ArraySignature {
@@ -196,8 +197,8 @@ pub enum DictSignature {
         value: &'static Signature,
     },
     Dynamic {
-        key: Box<Signature>,
-        value: Box<Signature>,
+        key: Arc<Signature>,
+        value: Arc<Signature>,
     },
 }
 
@@ -221,7 +222,7 @@ impl DictSignature {
 #[derive(Debug, Clone)]
 pub enum MaybeSignature {
     Static { child: &'static Signature },
-    Dynamic { child: Box<Signature> },
+    Dynamic { child: Arc<Signature> },
 }
 
 #[cfg(feature = "gvariant")]

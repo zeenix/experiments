@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use crate::{
     dynamic_type::DynamicType,
     r#type::Type,
     signature::{Signature, StructSignature},
 };
 
+#[derive(Debug, Clone)]
 pub struct Structure {
-    fields: Vec<Signature>,
+    fields: Arc<[Signature]>,
 }
 
 impl Structure {
-    pub fn new() -> Self {
+    // These methods will be the task of the builder. Structure is immutable in zvariant and it should remain so.
+    /*pub fn new() -> Self {
         Self { fields: Vec::new() }
     }
 
@@ -17,7 +21,7 @@ impl Structure {
         self.fields.push(T::SIGNATURE.clone());
 
         self
-    }
+    }*/
 }
 
 impl DynamicType for Structure {
