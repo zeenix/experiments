@@ -1,6 +1,7 @@
 use core::fmt;
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
+use std::str::FromStr;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -70,6 +71,79 @@ impl Display for Signature {
             #[cfg(feature = "gvariant")]
             Signature::Maybe(maybe) => write!(f, "m{}", **maybe),
         }
+    }
+}
+
+impl FromStr for Signature {
+    type Err = ();
+
+    // Let's use nom to parse the signature
+    fn from_str(s: &str) -> Result<Self, ()> {
+        use nom::branch::alt;
+        use nom::bytes::complete::tag;
+        use nom::character::complete::{char, one_of};
+        use nom::combinator::map;
+        use nom::multi::many1;
+        use nom::sequence::{delimited, pair, preceded, terminated};
+
+        fn parse_signature(s: &str) -> nom::IResult<&str, Signature> {
+            let simple_type = alt((
+                map(tag("y"), |_| Signature::U8),
+                map(tag("b"), |_| Signature::Bool),
+                map(tag("n"), |_| Signature::I16),
+                map(tag("q"), |_| Signature::U16),
+                map(tag("i"), |_| Signature::I32),
+                map(tag("u"), |_| Signature::U32),
+                map(tag("x"), |_| Signature::I64),
+                map(tag("t"), |_| Signature::U64),
+                map(tag("d"), |_| Signature::F64),
+                map(tag("s"), |_| Signature::Str),
+                map(tag("g"), |_| Signature::Signature),
+                map(tag("o"), |_| Signature::ObjectPath),
+                map(tag("v"), |_| Signature::Value),
+                #[cfg(unix)]
+                map(tag("h"), |_| Signature::Fd),
+            ));
+
+            let array = map(pair(char('a'), parse_signature), |(_, child)| {
+                Signature::Array(child.into())
+            });
+
+            let dict = map(
+                delimited(char('a'), pair(parse_signature, parse_signature), char('}')),
+                |(key, value)| Signature::Dict {
+                    key: key.into(),
+                    value: value.into(),
+                },
+            );
+
+            let structure = map(
+                delimited(char('('), many1(parse_signature), char(')')),
+                |fields| {
+                    Signature::Structure(FieldsSignatures::Dynamic {
+                        fields: fields.into(),
+                    })
+                },
+            );
+
+            #[cfg(feature = "gvariant")]
+            let maybe = map(pair(char('m'), parse_signature), |(_, child)| {
+                Signature::Maybe(child.into())
+            });
+
+            alt((
+                simple_type,
+                array,
+                dict,
+                structure,
+                #[cfg(feature = "gvariant")]
+                maybe,
+            ))(s)
+        }
+
+        let (_, signature) = parse_signature(s).map_err(|_| ())?;
+
+        Ok(signature)
     }
 }
 
@@ -193,6 +267,26 @@ impl FieldsSignatures {
     }
 }
 
+impl From<Arc<[Signature]>> for FieldsSignatures {
+    fn from(fields: Arc<[Signature]>) -> Self {
+        FieldsSignatures::Dynamic { fields }
+    }
+}
+
+impl From<Vec<Signature>> for FieldsSignatures {
+    fn from(fields: Vec<Signature>) -> Self {
+        FieldsSignatures::Dynamic {
+            fields: fields.into(),
+        }
+    }
+}
+
+impl From<&'static [&'static Signature]> for FieldsSignatures {
+    fn from(fields: &'static [&'static Signature]) -> Self {
+        FieldsSignatures::Static { fields }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ChildSignature {
     Static { child: &'static Signature },
@@ -207,5 +301,25 @@ impl Deref for ChildSignature {
             ChildSignature::Static { child } => child,
             ChildSignature::Dynamic { child } => child,
         }
+    }
+}
+
+impl From<Arc<Signature>> for ChildSignature {
+    fn from(child: Arc<Signature>) -> Self {
+        ChildSignature::Dynamic { child }
+    }
+}
+
+impl From<Signature> for ChildSignature {
+    fn from(child: Signature) -> Self {
+        ChildSignature::Dynamic {
+            child: Arc::new(child),
+        }
+    }
+}
+
+impl From<&'static Signature> for ChildSignature {
+    fn from(child: &'static Signature) -> Self {
+        ChildSignature::Static { child }
     }
 }

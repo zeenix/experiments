@@ -59,6 +59,8 @@ mod tests {
         // i32
         assert_eq!(i32::SIGNATURE, &Signature::I32);
         assert_eq!(i32::SIGNATURE.to_string(), "i");
+        let sig = i32::SIGNATURE.to_string().parse::<Signature>().unwrap();
+        assert_eq!(sig, Signature::I32);
 
         // Array of i32
         let sig = <&[i32]>::SIGNATURE;
@@ -68,7 +70,15 @@ mod tests {
                 child: &Signature::I32
             })
         );
-        assert_eq!(sig.to_string(), "ai");
+        let sig_str = sig.to_string();
+        assert_eq!(sig_str, "ai");
+        let sig = sig_str.parse::<Signature>().unwrap();
+        assert_eq!(
+            sig,
+            Signature::Array(ChildSignature::Static {
+                child: &Signature::I32
+            })
+        );
 
         // Structure of (i32, &str, &[&[i32]], bool)
         let sig = <(i32, &str, &[&[i32]], bool)>::SIGNATURE;
