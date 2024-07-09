@@ -145,7 +145,7 @@ impl PartialOrd for Signature {
             (Signature::Structure(a), Signature::Structure(b)) => a.iter().partial_cmp(b.iter()),
             #[cfg(feature = "gvariant")]
             (Signature::Maybe(a), Signature::Maybe(b)) => a.partial_cmp(b),
-            (a, b) => a.to_string().partial_cmp(&b.to_string()),
+            (a, b) => None,
         }
     }
 }
