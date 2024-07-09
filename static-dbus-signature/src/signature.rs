@@ -1,5 +1,6 @@
 use core::fmt;
 use std::fmt::{Display, Formatter};
+use std::ops::Deref;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -22,11 +23,14 @@ pub enum Signature {
     Fd,
 
     // Container types
-    Array(ArraySignature),
-    Dict(DictSignature),
-    Structure(StructSignature),
+    Array(ChildSignature),
+    Dict {
+        key: ChildSignature,
+        value: ChildSignature,
+    },
+    Structure(FieldsSignatures),
     #[cfg(feature = "gvariant")]
-    Maybe(MaybeSignature),
+    Maybe(ChildSignature),
 }
 
 impl Display for Signature {
@@ -47,24 +51,24 @@ impl Display for Signature {
             Signature::Value => write!(f, "v"),
             #[cfg(unix)]
             Signature::Fd => write!(f, "h"),
-            Signature::Array(array) => write!(f, "a{}", array.child()),
-            Signature::Dict(dict) => {
+            Signature::Array(array) => write!(f, "a{}", **array),
+            Signature::Dict { key, value } => {
                 write!(f, "a{{")?;
 
-                dict.key().fmt(f)?;
-                dict.value().fmt(f)?;
+                key.fmt(f)?;
+                value.fmt(f)?;
 
                 write!(f, "}}")
             }
             Signature::Structure(structure) => {
                 write!(f, "(")?;
-                for field in structure.fields() {
+                for field in structure.iter() {
                     field.fmt(f)?;
                 }
                 write!(f, ")")
             }
             #[cfg(feature = "gvariant")]
-            Signature::Maybe(maybe) => write!(f, "m{}", maybe.child()),
+            Signature::Maybe(maybe) => write!(f, "m{}", **maybe),
         }
     }
 }
@@ -86,13 +90,20 @@ impl PartialEq for Signature {
             | (Signature::ObjectPath, Signature::ObjectPath)
             | (Signature::Value, Signature::Value)
             | (Signature::Fd, Signature::Fd) => true,
-            (Signature::Array(a), Signature::Array(b)) => a.child() == b.child(),
-            (Signature::Dict(a), Signature::Dict(b)) => {
-                a.key() == b.key() && a.value() == b.value()
-            }
-            (Signature::Structure(a), Signature::Structure(b)) => a.fields().eq(b.fields()),
+            (Signature::Array(a), Signature::Array(b)) => a.eq(b),
+            (
+                Signature::Dict {
+                    key: key_a,
+                    value: value_a,
+                },
+                Signature::Dict {
+                    key: key_b,
+                    value: value_b,
+                },
+            ) => key_a.eq(key_b) && value_a.eq(value_b),
+            (Signature::Structure(a), Signature::Structure(b)) => a.iter().eq(b.iter()),
             #[cfg(feature = "gvariant")]
-            (Signature::Maybe(a), Signature::Maybe(b)) => a.child() == b.child(),
+            (Signature::Maybe(a), Signature::Maybe(b)) => a.eq(b),
             _ => false,
         }
     }
@@ -117,16 +128,23 @@ impl PartialOrd for Signature {
             | (Signature::ObjectPath, Signature::ObjectPath)
             | (Signature::Value, Signature::Value)
             | (Signature::Fd, Signature::Fd) => Some(std::cmp::Ordering::Equal),
-            (Signature::Array(a), Signature::Array(b)) => a.child().partial_cmp(b.child()),
-            (Signature::Dict(a), Signature::Dict(b)) => match a.key().partial_cmp(b.key()) {
-                Some(std::cmp::Ordering::Equal) => a.value().partial_cmp(b.value()),
+            (Signature::Array(a), Signature::Array(b)) => a.partial_cmp(b),
+            (
+                Signature::Dict {
+                    key: key_a,
+                    value: value_a,
+                },
+                Signature::Dict {
+                    key: key_b,
+                    value: value_b,
+                },
+            ) => match key_a.partial_cmp(key_b) {
+                Some(std::cmp::Ordering::Equal) => value_a.partial_cmp(value_b),
                 other => other,
             },
-            (Signature::Structure(a), Signature::Structure(b)) => {
-                a.fields().partial_cmp(b.fields())
-            }
+            (Signature::Structure(a), Signature::Structure(b)) => a.iter().partial_cmp(b.iter()),
             #[cfg(feature = "gvariant")]
-            (Signature::Maybe(a), Signature::Maybe(b)) => a.child().partial_cmp(b.child()),
+            (Signature::Maybe(a), Signature::Maybe(b)) => a.partial_cmp(b),
             (a, b) => a.to_string().partial_cmp(&b.to_string()),
         }
     }
@@ -139,7 +157,7 @@ impl Ord for Signature {
 }
 
 #[derive(Debug, Clone)]
-pub enum StructSignature {
+pub enum FieldsSignatures {
     Static {
         fields: &'static [&'static Signature],
     },
@@ -148,8 +166,8 @@ pub enum StructSignature {
     },
 }
 
-impl StructSignature {
-    pub fn fields(&self) -> impl Iterator<Item = &Signature> {
+impl FieldsSignatures {
+    pub fn iter(&self) -> impl Iterator<Item = &Signature> {
         use std::slice::Iter;
 
         enum Fields<'a> {
@@ -169,68 +187,25 @@ impl StructSignature {
         }
 
         match self {
-            StructSignature::Static { fields } => Fields::Static(fields.iter()),
-            StructSignature::Dynamic { fields } => Fields::Dynamic(fields.iter()),
+            FieldsSignatures::Static { fields } => Fields::Static(fields.iter()),
+            FieldsSignatures::Dynamic { fields } => Fields::Dynamic(fields.iter()),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum ArraySignature {
+pub enum ChildSignature {
     Static { child: &'static Signature },
     Dynamic { child: Arc<Signature> },
 }
 
-impl ArraySignature {
-    pub fn child(&self) -> &Signature {
+impl Deref for ChildSignature {
+    type Target = Signature;
+
+    fn deref(&self) -> &Self::Target {
         match self {
-            ArraySignature::Static { child } => child,
-            ArraySignature::Dynamic { child } => child,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum DictSignature {
-    Static {
-        key: &'static Signature,
-        value: &'static Signature,
-    },
-    Dynamic {
-        key: Arc<Signature>,
-        value: Arc<Signature>,
-    },
-}
-
-impl DictSignature {
-    pub fn key(&self) -> &Signature {
-        match self {
-            DictSignature::Static { key, .. } => key,
-            DictSignature::Dynamic { key, .. } => key,
-        }
-    }
-
-    pub fn value(&self) -> &Signature {
-        match self {
-            DictSignature::Static { value, .. } => value,
-            DictSignature::Dynamic { value, .. } => value,
-        }
-    }
-}
-
-#[cfg(feature = "gvariant")]
-#[derive(Debug, Clone)]
-pub enum MaybeSignature {
-    Static { child: &'static Signature },
-    Dynamic { child: Arc<Signature> },
-}
-
-#[cfg(feature = "gvariant")]
-impl MaybeSignature {
-    pub fn child(&self) -> &Signature {
-        match self {
-            MaybeSignature::Static { child } => child,
-            MaybeSignature::Dynamic { child } => child,
+            ChildSignature::Static { child } => child,
+            ChildSignature::Dynamic { child } => child,
         }
     }
 }

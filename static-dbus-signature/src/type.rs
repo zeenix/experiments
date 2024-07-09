@@ -1,4 +1,4 @@
-use crate::signature::{ArraySignature, Signature, StructSignature};
+use crate::signature::{ChildSignature, FieldsSignatures, Signature};
 
 pub trait Type {
     const SIGNATURE: &'static Signature;
@@ -12,28 +12,28 @@ where
 }
 
 impl<T: Type> Type for [T] {
-    const SIGNATURE: &'static Signature = &Signature::Array(ArraySignature::Static {
+    const SIGNATURE: &'static Signature = &Signature::Array(ChildSignature::Static {
         child: &T::SIGNATURE,
     });
 }
 
 impl<A: Type> Type for (A,) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
         fields: &[A::SIGNATURE],
     });
 }
 impl<A: Type, B: Type> Type for (A, B) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
         fields: &[A::SIGNATURE, B::SIGNATURE],
     });
 }
 impl<A: Type, B: Type, C: Type> Type for (A, B, C) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
         fields: &[A::SIGNATURE, B::SIGNATURE, C::SIGNATURE],
     });
 }
 impl<A: Type, B: Type, C: Type, D: Type> Type for (A, B, C, D) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(StructSignature::Static {
+    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
         fields: &[A::SIGNATURE, B::SIGNATURE, C::SIGNATURE, D::SIGNATURE],
     });
 }
@@ -64,7 +64,7 @@ mod tests {
         let sig = <&[i32]>::SIGNATURE;
         assert_eq!(
             sig,
-            &Signature::Array(ArraySignature::Static {
+            &Signature::Array(ChildSignature::Static {
                 child: &Signature::I32
             })
         );
@@ -74,12 +74,12 @@ mod tests {
         let sig = <(i32, &str, &[&[i32]], bool)>::SIGNATURE;
         assert_eq!(
             sig,
-            &Signature::Structure(StructSignature::Dynamic {
+            &Signature::Structure(FieldsSignatures::Dynamic {
                 fields: vec![
                     Signature::I32,
                     Signature::Str,
-                    Signature::Array(ArraySignature::Dynamic {
-                        child: Arc::new(Signature::Array(ArraySignature::Static {
+                    Signature::Array(ChildSignature::Dynamic {
+                        child: Arc::new(Signature::Array(ChildSignature::Static {
                             child: &Signature::I32,
                         })),
                     }),

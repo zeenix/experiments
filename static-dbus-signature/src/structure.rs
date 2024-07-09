@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     dynamic_type::DynamicType,
     r#type::Type,
-    signature::{Signature, StructSignature},
+    signature::{FieldsSignatures, Signature},
 };
 
 #[derive(Debug, Clone)]
@@ -27,7 +27,7 @@ impl Structure {
 impl DynamicType for Structure {
     fn signature(&self) -> Signature {
         // NOT nice to have to clone here. :(
-        Signature::Structure(StructSignature::Dynamic {
+        Signature::Structure(FieldsSignatures::Dynamic {
             fields: self.fields.clone(),
         })
     }
