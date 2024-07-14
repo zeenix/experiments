@@ -49,6 +49,10 @@ impl Type for bool {
     const SIGNATURE: &'static Signature = &Signature::Bool;
 }
 
+impl Type for () {
+    const SIGNATURE: &'static Signature = &Signature::Unit;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -56,6 +60,12 @@ mod tests {
 
     #[test]
     fn test_signature() {
+        // Let's start with ()
+        assert_eq!(<()>::SIGNATURE, &Signature::Unit);
+        assert_eq!(<()>::SIGNATURE.to_string(), "");
+        let sig = <()>::SIGNATURE.to_string().parse::<Signature>().unwrap();
+        assert_eq!(sig, Signature::Unit);
+
         // i32
         assert_eq!(i32::SIGNATURE, &Signature::I32);
         assert_eq!(i32::SIGNATURE.to_string(), "i");

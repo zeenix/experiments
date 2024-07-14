@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum Signature {
-    // Simple types
+    // Basic types
+    Unit,
     U8,
     Bool,
     I16,
@@ -37,6 +38,7 @@ pub enum Signature {
 impl Display for Signature {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
+            Signature::Unit => write!(f, ""),
             Signature::U8 => write!(f, "y"),
             Signature::Bool => write!(f, "b"),
             Signature::I16 => write!(f, "n"),
@@ -82,11 +84,12 @@ impl FromStr for Signature {
         use nom::branch::alt;
         use nom::bytes::complete::tag;
         use nom::character::complete::{char, one_of};
-        use nom::combinator::map;
+        use nom::combinator::{eof, map};
         use nom::multi::many1;
         use nom::sequence::{delimited, pair, preceded, terminated};
 
         fn parse_signature(s: &str) -> nom::IResult<&str, Signature> {
+            let empty = map(eof, |_| Signature::Unit);
             let simple_type = alt((
                 map(tag("y"), |_| Signature::U8),
                 map(tag("b"), |_| Signature::Bool),
@@ -132,6 +135,7 @@ impl FromStr for Signature {
             });
 
             alt((
+                empty,
                 simple_type,
                 array,
                 dict,
@@ -150,7 +154,8 @@ impl FromStr for Signature {
 impl PartialEq for Signature {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Signature::U8, Signature::U8)
+            (Signature::Unit, Signature::Unit)
+            | (Signature::U8, Signature::U8)
             | (Signature::Bool, Signature::Bool)
             | (Signature::I16, Signature::I16)
             | (Signature::U16, Signature::U16)
@@ -188,7 +193,8 @@ impl Eq for Signature {}
 impl PartialOrd for Signature {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match (self, other) {
-            (Signature::U8, Signature::U8)
+            (Signature::Unit, Signature::Unit)
+            | (Signature::U8, Signature::U8)
             | (Signature::Bool, Signature::Bool)
             | (Signature::I16, Signature::I16)
             | (Signature::U16, Signature::U16)
