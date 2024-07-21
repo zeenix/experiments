@@ -1,3 +1,8 @@
+mod child;
+pub use child::ChildSignature;
+mod fields;
+pub use fields::FieldsSignatures;
+
 use core::fmt;
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
@@ -233,99 +238,5 @@ impl PartialOrd for Signature {
 impl Ord for Signature {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum FieldsSignatures {
-    Static {
-        fields: &'static [&'static Signature],
-    },
-    Dynamic {
-        fields: Arc<[Signature]>,
-    },
-}
-
-impl FieldsSignatures {
-    pub fn iter(&self) -> impl Iterator<Item = &Signature> {
-        use std::slice::Iter;
-
-        enum Fields<'a> {
-            Static(Iter<'static, &'static Signature>),
-            Dynamic(Iter<'a, Signature>),
-        }
-
-        impl<'a> Iterator for Fields<'a> {
-            type Item = &'a Signature;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                match self {
-                    Fields::Static(iter) => iter.next().map(|&f| f),
-                    Fields::Dynamic(iter) => iter.next(),
-                }
-            }
-        }
-
-        match self {
-            FieldsSignatures::Static { fields } => Fields::Static(fields.iter()),
-            FieldsSignatures::Dynamic { fields } => Fields::Dynamic(fields.iter()),
-        }
-    }
-}
-
-impl From<Arc<[Signature]>> for FieldsSignatures {
-    fn from(fields: Arc<[Signature]>) -> Self {
-        FieldsSignatures::Dynamic { fields }
-    }
-}
-
-impl From<Vec<Signature>> for FieldsSignatures {
-    fn from(fields: Vec<Signature>) -> Self {
-        FieldsSignatures::Dynamic {
-            fields: fields.into(),
-        }
-    }
-}
-
-impl From<&'static [&'static Signature]> for FieldsSignatures {
-    fn from(fields: &'static [&'static Signature]) -> Self {
-        FieldsSignatures::Static { fields }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ChildSignature {
-    Static { child: &'static Signature },
-    Dynamic { child: Arc<Signature> },
-}
-
-impl Deref for ChildSignature {
-    type Target = Signature;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            ChildSignature::Static { child } => child,
-            ChildSignature::Dynamic { child } => child,
-        }
-    }
-}
-
-impl From<Arc<Signature>> for ChildSignature {
-    fn from(child: Arc<Signature>) -> Self {
-        ChildSignature::Dynamic { child }
-    }
-}
-
-impl From<Signature> for ChildSignature {
-    fn from(child: Signature) -> Self {
-        ChildSignature::Dynamic {
-            child: Arc::new(child),
-        }
-    }
-}
-
-impl From<&'static Signature> for ChildSignature {
-    fn from(child: &'static Signature) -> Self {
-        ChildSignature::Static { child }
     }
 }
