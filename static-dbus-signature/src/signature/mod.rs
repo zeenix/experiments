@@ -9,6 +9,8 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::r#type::Type;
+
 #[derive(Debug, Clone)]
 pub enum Signature {
     // Basic types
@@ -84,76 +86,118 @@ impl Display for Signature {
 impl FromStr for Signature {
     type Err = ();
 
-    // Let's use nom to parse the signature
     fn from_str(s: &str) -> Result<Self, ()> {
-        use nom::branch::alt;
-        use nom::bytes::complete::tag;
-        use nom::character::complete::{char, one_of};
-        use nom::combinator::{eof, map};
-        use nom::multi::many1;
-        use nom::sequence::{delimited, pair, preceded, terminated};
+        parse(s, false)
+    }
+}
 
-        fn parse_signature(s: &str) -> nom::IResult<&str, Signature> {
-            let empty = map(eof, |_| Signature::Unit);
-            let simple_type = alt((
-                map(tag("y"), |_| Signature::U8),
-                map(tag("b"), |_| Signature::Bool),
-                map(tag("n"), |_| Signature::I16),
-                map(tag("q"), |_| Signature::U16),
-                map(tag("i"), |_| Signature::I32),
-                map(tag("u"), |_| Signature::U32),
-                map(tag("x"), |_| Signature::I64),
-                map(tag("t"), |_| Signature::U64),
-                map(tag("d"), |_| Signature::F64),
-                map(tag("s"), |_| Signature::Str),
-                map(tag("g"), |_| Signature::Signature),
-                map(tag("o"), |_| Signature::ObjectPath),
-                map(tag("v"), |_| Signature::Value),
-                #[cfg(unix)]
-                map(tag("h"), |_| Signature::Fd),
-            ));
+/// Validate the given signature string.
+pub fn validate(s: &str) -> Result<(), ()> {
+    parse(s, true).map(|_| ())
+}
 
-            let array = map(pair(char('a'), parse_signature), |(_, child)| {
-                Signature::Array(child.into())
-            });
+/// Parse a signature string into a `Signature`.
+///
+/// When `check_only` is true, the function will not allocate memory for the dynamic types.
+/// Instead it will return dummy values in the parsed Signature.
+fn parse(s: &str, check_only: bool) -> Result<Signature, ()> {
+    use nom::branch::alt;
+    use nom::bytes::complete::tag;
+    use nom::character::complete::{char, one_of};
+    use nom::combinator::{eof, map};
+    use nom::multi::many1;
+    use nom::sequence::{delimited, pair, preceded, terminated};
 
-            let dict = map(
-                delimited(char('a'), pair(parse_signature, parse_signature), char('}')),
-                |(key, value)| Signature::Dict {
+    let empty = map(eof, |_| Signature::Unit);
+
+    fn parse_signature(s: &str, check_only: bool) -> nom::IResult<&str, Signature> {
+        let parse_with_context = |s| parse_signature(s, check_only);
+
+        let simple_type = alt((
+            map(tag("y"), |_| Signature::U8),
+            map(tag("b"), |_| Signature::Bool),
+            map(tag("n"), |_| Signature::I16),
+            map(tag("q"), |_| Signature::U16),
+            map(tag("i"), |_| Signature::I32),
+            map(tag("u"), |_| Signature::U32),
+            map(tag("x"), |_| Signature::I64),
+            map(tag("t"), |_| Signature::U64),
+            map(tag("d"), |_| Signature::F64),
+            map(tag("s"), |_| Signature::Str),
+            map(tag("g"), |_| Signature::Signature),
+            map(tag("o"), |_| Signature::ObjectPath),
+            map(tag("v"), |_| Signature::Value),
+            #[cfg(unix)]
+            map(tag("h"), |_| Signature::Fd),
+        ));
+
+        let dict = map(
+            pair(
+                char('a'),
+                delimited(
+                    char('{'),
+                    pair(parse_with_context, parse_with_context),
+                    char('}'),
+                ),
+            ),
+            |(_, (key, value))| {
+                if check_only {
+                    return Signature::Dict {
+                        key: <()>::SIGNATURE.into(),
+                        value: <()>::SIGNATURE.into(),
+                    };
+                }
+
+                Signature::Dict {
                     key: key.into(),
                     value: value.into(),
-                },
-            );
+                }
+            },
+        );
 
-            let structure = map(
-                delimited(char('('), many1(parse_signature), char(')')),
-                |fields| {
-                    Signature::Structure(FieldsSignatures::Dynamic {
-                        fields: fields.into(),
-                    })
-                },
-            );
+        let array = map(pair(char('a'), parse_with_context), |(_, child)| {
+            if check_only {
+                return Signature::Array(<()>::SIGNATURE.into());
+            }
 
+            Signature::Array(child.into())
+        });
+
+        let structure = map(
+            delimited(char('('), many1(parse_with_context), char(')')),
+            |fields| {
+                if check_only {
+                    return Signature::Structure(FieldsSignatures::Static { fields: &[] });
+                }
+
+                Signature::Structure(FieldsSignatures::Dynamic {
+                    fields: fields.into(),
+                })
+            },
+        );
+
+        #[cfg(feature = "gvariant")]
+        let maybe = map(pair(char('m'), parse_with_context), |(_, child)| {
+            if check_only {
+                return Signature::Maybe(<()>::SIGNATURE.into());
+            }
+
+            Signature::Maybe(child.into())
+        });
+
+        alt((
+            simple_type,
+            dict,
+            array,
+            structure,
             #[cfg(feature = "gvariant")]
-            let maybe = map(pair(char('m'), parse_signature), |(_, child)| {
-                Signature::Maybe(child.into())
-            });
-
-            alt((
-                empty,
-                simple_type,
-                array,
-                dict,
-                structure,
-                #[cfg(feature = "gvariant")]
-                maybe,
-            ))(s)
-        }
-
-        let (_, signature) = parse_signature(s).map_err(|_| ())?;
-
-        Ok(signature)
+            maybe,
+        ))(s)
     }
+
+    let (_, signature) = alt((empty, |s| parse_signature(s, check_only)))(s).map_err(|_| ())?;
+
+    Ok(signature)
 }
 
 impl PartialEq for Signature {
@@ -238,5 +282,50 @@ impl PartialOrd for Signature {
 impl Ord for Signature {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_strings() {
+        let signatures = [
+            "",
+            "y",
+            "b",
+            "n",
+            "q",
+            "i",
+            "u",
+            "x",
+            "t",
+            "d",
+            "s",
+            "g",
+            "o",
+            "v",
+            #[cfg(unix)]
+            "h",
+            "a(y)",
+            "a{yy}",
+            "(yy)",
+            "a{yy}",
+            "a{sv}",
+            "a{sa{sv}}",
+            "a{sa(ux)}",
+        ];
+        for s in signatures {
+            assert!(validate(s).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_strings() {
+        let signatures = ["a", "a{}", "a{y", "a{y}", "a{y}a{y}", "a{y}a{y}a{y}", "z"];
+        for s in signatures {
+            assert!(validate(s).is_err());
+        }
     }
 }
