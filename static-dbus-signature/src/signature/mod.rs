@@ -10,6 +10,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::r#type::Type;
+use crate::signature;
 
 #[derive(Debug, Clone)]
 pub enum Signature {
@@ -104,7 +105,7 @@ fn parse(s: &str, check_only: bool) -> Result<Signature, ()> {
     use nom::branch::alt;
     use nom::bytes::complete::tag;
     use nom::character::complete::{char, one_of};
-    use nom::combinator::{eof, map};
+    use nom::combinator::{all_consuming, eof, map};
     use nom::multi::many1;
     use nom::sequence::{delimited, pair, preceded, terminated};
 
@@ -195,7 +196,23 @@ fn parse(s: &str, check_only: bool) -> Result<Signature, ()> {
         ))(s)
     }
 
-    let (_, signature) = alt((empty, |s| parse_signature(s, check_only)))(s).map_err(|_| ())?;
+    let full_signature = map(
+        many1(|s| parse_signature(s, check_only)),
+        |mut signatures| {
+            if check_only {
+                return Signature::Unit;
+            }
+
+            if signatures.len() == 1 {
+                return signatures.remove(0);
+            }
+
+            Signature::Structure(FieldsSignatures::Dynamic {
+                fields: signatures.into(),
+            })
+        },
+    );
+    let (_, signature) = all_consuming(alt((empty, full_signature)))(s).map_err(|_| ())?;
 
     Ok(signature)
 }
@@ -314,9 +331,12 @@ mod tests {
             "g",
             "o",
             "v",
+            "xs",
+            "(ysa{sd})",
             "a(y)",
             "a{yy}",
             "(yy)",
+            "a{sd}",
             "a{yy}",
             "a{sv}",
             "a{sa{sv}}",
@@ -352,7 +372,11 @@ mod tests {
             "(x",
             "(x())",
             "(xa()",
-            "(xa(s)"
+            "(xa(s)",
+            "(xs",
+            "xs)",
+            "s/",
+            "a{yz}"
         );
     }
 }
