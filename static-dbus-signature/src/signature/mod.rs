@@ -289,9 +289,17 @@ impl Ord for Signature {
 mod tests {
     use super::*;
 
+    macro_rules! validate {
+        ($($signature:literal),+) => {
+            $(
+                assert!(validate($signature).is_ok());
+            )+
+        };
+    }
+
     #[test]
     fn validate_strings() {
-        let signatures = [
+        validate!(
             "",
             "y",
             "b",
@@ -306,8 +314,6 @@ mod tests {
             "g",
             "o",
             "v",
-            #[cfg(unix)]
-            "h",
             "a(y)",
             "a{yy}",
             "(yy)",
@@ -315,17 +321,38 @@ mod tests {
             "a{sv}",
             "a{sa{sv}}",
             "a{sa(ux)}",
-        ];
-        for s in signatures {
-            assert!(validate(s).is_ok());
-        }
+            "(x)",
+            "(x(isy))",
+            "(xa(isy))",
+            "(xa(s))"
+        );
+        #[cfg(unix)]
+        validate!("h");
+    }
+
+    macro_rules! invalidate {
+        ($($signature:literal),+) => {
+            $(
+                assert!(validate($signature).is_err());
+            )+
+        };
     }
 
     #[test]
     fn invalid_strings() {
-        let signatures = ["a", "a{}", "a{y", "a{y}", "a{y}a{y}", "a{y}a{y}a{y}", "z"];
-        for s in signatures {
-            assert!(validate(s).is_err());
-        }
+        invalidate!(
+            "a",
+            "a{}",
+            "a{y",
+            "a{y}",
+            "a{y}a{y}",
+            "a{y}a{y}a{y}",
+            "z",
+            "()",
+            "(x",
+            "(x())",
+            "(xa()",
+            "(xa(s)"
+        );
     }
 }
