@@ -311,9 +311,11 @@ mod tests {
     use super::*;
 
     macro_rules! validate {
-        ($($signature:literal),+) => {
+        ($($signature:literal => $expected:expr),+) => {
             $(
                 assert!(validate($signature).is_ok());
+                let parsed = Signature::from_str($signature).unwrap();
+                assert_eq!(parsed, $expected);
             )+
         };
     }
@@ -321,37 +323,130 @@ mod tests {
     #[test]
     fn validate_strings() {
         validate!(
-            "",
-            "y",
-            "b",
-            "n",
-            "q",
-            "i",
-            "u",
-            "x",
-            "t",
-            "d",
-            "s",
-            "g",
-            "o",
-            "v",
-            "xs",
-            "(ysa{sd})",
-            "a(y)",
-            "a{yy}",
-            "(yy)",
-            "a{sd}",
-            "a{yy}",
-            "a{sv}",
-            "a{sa{sv}}",
-            "a{sa(ux)}",
-            "(x)",
-            "(x(isy))",
-            "(xa(isy))",
-            "(xa(s))"
+            "" => Signature::Unit,
+            "y" => Signature::U8,
+            "b" => Signature::Bool,
+            "n" => Signature::I16,
+            "q" => Signature::U16,
+            "i" => Signature::I32,
+            "u" => Signature::U32,
+            "x" => Signature::I64,
+            "t" => Signature::U64,
+            "d" => Signature::F64,
+            "s" => Signature::Str,
+            "g" => Signature::Signature,
+            "o" => Signature::ObjectPath,
+            "v" => Signature::Value,
+            "xs" => Signature::Structure(FieldsSignatures::Static {
+                fields: &[&Signature::I64, &Signature::Str]
+            }),
+            "(ysa{sd})" => Signature::Structure(FieldsSignatures::Static {
+                fields: &[
+                    &Signature::U8,
+                    &Signature::Str,
+                    &Signature::Dict {
+                        key: ChildSignature::Static { child: &Signature::Str },
+                        value: ChildSignature::Static { child: &Signature::F64 },
+                    },
+                ],
+            }),
+            "a(y)" => Signature::Array(ChildSignature::Static {
+                child: &Signature::Structure(FieldsSignatures::Static { fields: &[&Signature::U8] }),
+            }),
+            "a{yy}" => Signature::Dict {
+                key: ChildSignature::Static {
+                    child: &Signature::U8
+                },
+                value: ChildSignature::Static {
+                    child: &Signature::U8
+                }
+            },
+            "(yy)" => Signature::Structure(FieldsSignatures::Static {
+                fields: &[&Signature::U8, &Signature::U8]
+            }),
+            "a{sd}" => Signature::Dict {
+                key: ChildSignature::Static {
+                    child: &Signature::Str
+                },
+                value: ChildSignature::Static {
+                    child: &Signature::F64
+                }
+            },
+            "a{yy}" => Signature::Dict {
+                key: ChildSignature::Static {
+                    child: &Signature::U8
+                },
+                value: ChildSignature::Static {
+                    child: &Signature::U8
+                }
+            },
+            "a{sv}" => Signature::Dict {
+                key: ChildSignature::Static {
+                    child: &Signature::Str,
+                },
+                value: ChildSignature::Static {
+                    child: &Signature::Value
+                }
+            },
+            "a{sa{sv}}" => Signature::Dict {
+                key: ChildSignature::Static {
+                    child: &Signature::Str
+                },
+                value: ChildSignature::Static {
+                    child: &Signature::Dict {
+                        key: ChildSignature::Static {
+                            child: &Signature::Str,
+                        },
+                        value: ChildSignature::Static {
+                            child: &Signature::Value
+                        }
+                    }
+                }
+            },
+            "a{sa(ux)}" => Signature::Dict {
+                key: ChildSignature::Static {
+                    child: &Signature::Str
+                },
+                value: ChildSignature::Static {
+                    child: &Signature::Array(ChildSignature::Static {
+                    child: &Signature::Structure(FieldsSignatures::Static {
+                        fields: &[&Signature::U32, &Signature::I64]
+                    })}),
+                }
+            },
+            "(x)" => Signature::Structure(FieldsSignatures::Static {
+                fields: &[&Signature::I64]
+            }),
+            "(x(isy))" => Signature::Structure(FieldsSignatures::Static {
+                fields: &[
+                    &Signature::I64,
+                    &Signature::Structure(FieldsSignatures::Static {
+                        fields: &[&Signature::I32, &Signature::Str, &Signature::U8]
+                    }),
+                ]
+            }),
+            "(xa(isy))" => Signature::Structure(FieldsSignatures::Static {
+                fields: &[
+                    &Signature::I64,
+                    &Signature::Array(ChildSignature::Static {
+                        child: &Signature::Structure(FieldsSignatures::Static {
+                            fields: &[&Signature::I32, &Signature::Str, &Signature::U8]
+                        }),
+                    }),
+                ]
+            }),
+            "(xa(s))" => Signature::Structure(FieldsSignatures::Static {
+                fields: &[
+                    &Signature::I64,
+                    &Signature::Array(ChildSignature::Static {
+                        child: &Signature::Structure(FieldsSignatures::Static {
+                            fields: &[&Signature::Str]
+                        }),
+                    }),
+                ]
+            })
         );
-        #[cfg(unix)]
-        validate!("h");
+        validate!("h" => Signature::Fd);
     }
 
     macro_rules! invalidate {
