@@ -104,12 +104,42 @@ pub fn validate(s: &str) -> Result<(), ()> {
 fn parse(s: &str, check_only: bool) -> Result<Signature, ()> {
     use nom::branch::alt;
     use nom::bytes::complete::tag;
-    use nom::character::complete::{char, one_of};
+    use nom::character::complete::char;
     use nom::combinator::{all_consuming, eof, map};
-    use nom::multi::many1;
+    use nom::multi::{many1, many1_count};
     use nom::sequence::{delimited, pair, preceded, terminated};
 
     let empty = map(eof, |_| Signature::Unit);
+
+    // `many1` allocates so we only want to use it when `check_only == false`
+    fn many(
+        s: &str,
+        check_only: bool,
+        top_level: bool,
+    ) -> Result<(&str, Signature), nom::Err<nom::error::Error<&str>>> {
+        let parser = |s| parse_signature(s, check_only);
+        if check_only {
+            return map(many1_count(parser), |_| Signature::Unit)(s);
+        }
+
+        map(many1(parser), |mut signatures| {
+            if top_level {
+                // On the top-level, we want to return:
+                //
+                // * unit signature if there are none.
+                // * the signature directly if there is only one.
+                if signatures.is_empty() {
+                    return Signature::Unit;
+                } else if signatures.len() == 1 {
+                    return signatures.remove(0);
+                }
+            }
+
+            Signature::Structure(FieldsSignatures::Dynamic {
+                fields: signatures.into(),
+            })
+        })(s)
+    }
 
     fn parse_signature(s: &str, check_only: bool) -> nom::IResult<&str, Signature> {
         let parse_with_context = |s| parse_signature(s, check_only);
@@ -164,18 +194,7 @@ fn parse(s: &str, check_only: bool) -> Result<Signature, ()> {
             Signature::Array(child.into())
         });
 
-        let structure = map(
-            delimited(char('('), many1(parse_with_context), char(')')),
-            |fields| {
-                if check_only {
-                    return Signature::Structure(FieldsSignatures::Static { fields: &[] });
-                }
-
-                Signature::Structure(FieldsSignatures::Dynamic {
-                    fields: fields.into(),
-                })
-            },
-        );
+        let structure = delimited(char('('), |s| many(s, check_only, false), char(')'));
 
         #[cfg(feature = "gvariant")]
         let maybe = map(pair(char('m'), parse_with_context), |(_, child)| {
@@ -196,23 +215,8 @@ fn parse(s: &str, check_only: bool) -> Result<Signature, ()> {
         ))(s)
     }
 
-    let full_signature = map(
-        many1(|s| parse_signature(s, check_only)),
-        |mut signatures| {
-            if check_only {
-                return Signature::Unit;
-            }
-
-            if signatures.len() == 1 {
-                return signatures.remove(0);
-            }
-
-            Signature::Structure(FieldsSignatures::Dynamic {
-                fields: signatures.into(),
-            })
-        },
-    );
-    let (_, signature) = all_consuming(alt((empty, full_signature)))(s).map_err(|_| ())?;
+    let (_, signature) =
+        all_consuming(alt((empty, |s| many(s, check_only, true))))(s).map_err(|_| ())?;
 
     Ok(signature)
 }
