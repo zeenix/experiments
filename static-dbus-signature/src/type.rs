@@ -17,27 +17,41 @@ impl<T: Type> Type for [T] {
     });
 }
 
-impl<A: Type> Type for (A,) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
-        fields: &[A::SIGNATURE],
-    });
+macro_rules! tuple_impls {
+    ($($len:expr => ($($n:tt $name:ident)+))+) => {
+        $(
+            impl<$($name),+> Type for ($($name,)+)
+            where
+                $($name: Type,)+
+            {
+                const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
+                    fields: &[$(
+                        $name::SIGNATURE,
+                    )+],
+                });
+            }
+        )+
+    }
 }
-impl<A: Type, B: Type> Type for (A, B) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
-        fields: &[A::SIGNATURE, B::SIGNATURE],
-    });
+
+tuple_impls! {
+    1 => (0 T0)
+    2 => (0 T0 1 T1)
+    3 => (0 T0 1 T1 2 T2)
+    4 => (0 T0 1 T1 2 T2 3 T3)
+    5 => (0 T0 1 T1 2 T2 3 T3 4 T4)
+    6 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5)
+    7 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6)
+    8 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7)
+    9 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8)
+    10 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9)
+    11 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10)
+    12 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11)
+    13 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12)
+    14 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13)
+    15 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13 14 T14)
+    16 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13 14 T14 15 T15)
 }
-impl<A: Type, B: Type, C: Type> Type for (A, B, C) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
-        fields: &[A::SIGNATURE, B::SIGNATURE, C::SIGNATURE],
-    });
-}
-impl<A: Type, B: Type, C: Type, D: Type> Type for (A, B, C, D) {
-    const SIGNATURE: &'static Signature = &Signature::Structure(FieldsSignatures::Static {
-        fields: &[A::SIGNATURE, B::SIGNATURE, C::SIGNATURE, D::SIGNATURE],
-    });
-}
-// TODO: Use a macro for for generating all tuple impls
 
 impl Type for i32 {
     const SIGNATURE: &'static Signature = &Signature::I32;
