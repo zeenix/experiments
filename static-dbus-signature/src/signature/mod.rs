@@ -274,7 +274,7 @@ impl PartialEq for Signature {
             | (Signature::ObjectPath, Signature::ObjectPath)
             | (Signature::Value, Signature::Value)
             | (Signature::Fd, Signature::Fd) => true,
-            (Signature::Array(a), Signature::Array(b)) => a.eq(b),
+            (Signature::Array(a), Signature::Array(b)) => a.eq(&**b),
             (
                 Signature::Dict {
                     key: key_a,
@@ -284,16 +284,106 @@ impl PartialEq for Signature {
                     key: key_b,
                     value: value_b,
                 },
-            ) => key_a.eq(key_b) && value_a.eq(value_b),
+            ) => key_a.eq(&**key_b) && value_a.eq(&**value_b),
             (Signature::Structure(a), Signature::Structure(b)) => a.iter().eq(b.iter()),
             #[cfg(feature = "gvariant")]
-            (Signature::Maybe(a), Signature::Maybe(b)) => a.eq(b),
+            (Signature::Maybe(a), Signature::Maybe(b)) => a.eq(&**b),
             _ => false,
         }
     }
 }
 
 impl Eq for Signature {}
+
+impl PartialEq<&str> for Signature {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            Signature::Unit => other.is_empty(),
+            Self::Bool => *other == "b",
+            Self::U8 => *other == "y",
+            Self::I16 => *other == "n",
+            Self::U16 => *other == "q",
+            Self::I32 => *other == "i",
+            Self::U32 => *other == "u",
+            Self::I64 => *other == "x",
+            Self::U64 => *other == "t",
+            Self::F64 => *other == "d",
+            Self::Str => *other == "s",
+            Self::Signature => *other == "g",
+            Self::ObjectPath => *other == "o",
+            Self::Value => *other == "v",
+            #[cfg(unix)]
+            Self::Fd => *other == "h",
+            Self::Array(child) => {
+                if other.len() < 2 || !other.starts_with('a') {
+                    return false;
+                }
+
+                child.eq(&other[1..])
+            }
+            Self::Dict { key, value } => {
+                if other.len() < 4 || !other.starts_with("a{") || !other.ends_with('}') {
+                    return false;
+                }
+
+                let (key_str, value_str) = other[2..other.len() - 1].split_at(1);
+
+                key.eq(key_str) && value.eq(value_str)
+            }
+            Self::Structure(fields) => {
+                let string_len = self.string_len();
+                if string_len < other.len() {
+                    // self.string_len() will always take `()` into account so it can't be a smaller
+                    // number than `other.len()`.
+                    return false;
+                }
+
+                let fields_str = if string_len == other.len() {
+                    // `other` has to have outer `()`.
+                    if other.len() < 3 {
+                        return false;
+                    }
+
+                    &other[1..other.len() - 1]
+                } else {
+                    // No outer `()`.
+                    if other.len() < 1 {
+                        return false;
+                    }
+
+                    other
+                };
+
+                let mut start = 0;
+                for field in fields.iter() {
+                    let len = field.string_len();
+                    let end = start + len;
+                    if !field.eq(&fields_str[start..end]) {
+                        return false;
+                    }
+
+                    start += len;
+                }
+
+                true
+            }
+            #[cfg(feature = "gvariant")]
+            Self::Maybe(child) => {
+                if other.len() < 2 || !other.starts_with('m') {
+                    return false;
+                }
+
+                child.eq(&other[1..])
+            }
+        }
+    }
+}
+
+impl PartialEq<str> for Signature {
+    fn eq(&self, other: &str) -> bool {
+        self.eq(&other)
+    }
+}
 
 impl PartialOrd for Signature {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -351,6 +441,7 @@ mod tests {
                 assert!(validate($signature).is_ok());
                 let parsed = Signature::from_str($signature).unwrap();
                 assert_eq!(parsed, $expected);
+                assert_eq!(parsed, $signature);
             )+
         };
     }
