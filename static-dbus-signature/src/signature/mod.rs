@@ -43,6 +43,41 @@ pub enum Signature {
     Maybe(ChildSignature),
 }
 
+impl Signature {
+    /// The size of the string form of `self`.
+    pub fn string_len(&self) -> usize {
+        match self {
+            Signature::Unit => 0,
+            Signature::U8
+            | Signature::Bool
+            | Signature::I16
+            | Signature::U16
+            | Signature::I32
+            | Signature::U32
+            | Signature::I64
+            | Signature::U64
+            | Signature::F64
+            | Signature::Str
+            | Signature::Signature
+            | Signature::ObjectPath
+            | Signature::Value => 1,
+            #[cfg(unix)]
+            Signature::Fd => 1,
+            Signature::Array(child) => 1 + child.string_len(),
+            Signature::Dict { key, value } => 3 + key.string_len() + value.string_len(),
+            Signature::Structure(fields) => {
+                let mut len = 2;
+                for field in fields.iter() {
+                    len += field.string_len();
+                }
+                len
+            }
+            #[cfg(feature = "gvariant")]
+            Signature::Maybe(child) => 1 + child.string_len(),
+        }
+    }
+}
+
 impl Display for Signature {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
