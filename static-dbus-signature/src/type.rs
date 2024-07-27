@@ -53,18 +53,31 @@ tuple_impls! {
     16 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13 14 T14 15 T15)
 }
 
-impl Type for i32 {
-    const SIGNATURE: &'static Signature = &Signature::I32;
-}
-impl Type for &str {
-    const SIGNATURE: &'static Signature = &Signature::Str;
-}
-impl Type for bool {
-    const SIGNATURE: &'static Signature = &Signature::Bool;
+macro_rules! basic_impls {
+    ($($name:ty => $variant:ident)+) => {
+        $(
+            impl Type for $name {
+                const SIGNATURE: &'static Signature = &Signature::$variant;
+            }
+        )+
+    }
 }
 
-impl Type for () {
-    const SIGNATURE: &'static Signature = &Signature::Unit;
+basic_impls! {
+    u8 => U8
+    u16 => U16
+    u32 => U32
+    u64 => U64
+    // No i8 type in D-Bus/GVariant, let's pretend it's i16
+    i8 => I16
+    i16 => I16
+    i32 => I32
+    i64 => I64
+    f32 => F64
+    f64 => F64
+    str => Str
+    bool => Bool
+    () => Unit
 }
 
 #[cfg(test)]
