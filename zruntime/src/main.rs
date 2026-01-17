@@ -1,6 +1,14 @@
-use std::{future::Future, pin::Pin, sync::{Arc, Mutex, mpsc::{Receiver, Sender, SyncSender, sync_channel}}, task::{Context, Poll}};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{
+        mpsc::{sync_channel, Receiver, Sender, SyncSender},
+        Arc, Mutex,
+    },
+    task::{Context, Poll},
+};
 
-use futures::{FutureExt, future::BoxFuture, task::ArcWake};
+use futures::{future::BoxFuture, pin_mut, task::ArcWake, FutureExt};
 
 struct MyFuture(u32);
 
@@ -24,7 +32,7 @@ struct Spawner {
 }
 
 impl Spawner {
-    fn spawn<F>(&self, f: F) 
+    fn spawn<F>(&self, f: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
@@ -46,10 +54,7 @@ struct Task {
 
 fn create_executor() -> (Executor, Spawner) {
     let (sender, receiver) = sync_channel(0);
-    (
-        Executor { receiver },
-        Spawner { sender },
-    )
+    (Executor { receiver }, Spawner { sender })
 }
 
 impl ArcWake for Task {
@@ -59,23 +64,33 @@ impl ArcWake for Task {
 }
 
 impl Executor {
-    fn block_on<F>(f: F) -> F::Output
+    fn block_on<F>(&mut self, f: F) -> F::Output
     where
         F: Future,
     {
-        // 
-        //
-        // We were here!
-        //
-        //
-        let pin = Pin::new(&mut f);
+        pin_mut!(f);
 
-        let cx = Context::from_waker(std::task::noop_waker_ref());
+        let mut cx = Context::from_waker(futures::task::noop_waker_ref());
 
-        pin.poll(&mut cx).expect("poll failed");
+        loop {
+            match Pin::new(&mut f).poll(&mut cx) {
+                Poll::Ready(val) => return val,
+                Poll::Pending => {}
+            }
+        }
     }
 }
 
 fn main() {
+    let (mut executor, _spawner) = create_executor();
 
+    /*spawner.spawn(async {
+        println!("Hello from the future!");
+    });*/
+
+    executor.block_on(async {
+        println!("Hello from the executor!");
+    });
+    let num = executor.block_on(give_me_u32());
+    println!("Received number: {}", num);
 }
