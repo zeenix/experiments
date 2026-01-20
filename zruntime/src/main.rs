@@ -8,6 +8,10 @@ use std::{
     task::{Context, Poll},
 };
 
+mod executor;
+
+use executor::naive;
+
 use futures::{future::BoxFuture, pin_mut, task::ArcWake, FutureExt};
 
 struct MyFuture(u32);
@@ -24,65 +28,8 @@ async fn give_me_u32() -> u32 {
     MyFuture(42).await
 }
 
-struct Executor {
-    receiver: Receiver<Arc<Task>>,
-}
-struct Spawner {
-    sender: SyncSender<Arc<Task>>,
-}
-
-impl Spawner {
-    fn spawn<F>(&self, f: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        let future = Mutex::new(Some(f.boxed()));
-        let task = Arc::new(Task {
-            future,
-            sender: self.sender.clone(),
-        });
-
-        self.sender.send(task).unwrap();
-    }
-}
-
-struct Task {
-    future: Mutex<Option<BoxFuture<'static, ()>>>,
-
-    sender: SyncSender<Arc<Task>>,
-}
-
-fn create_executor() -> (Executor, Spawner) {
-    let (sender, receiver) = sync_channel(0);
-    (Executor { receiver }, Spawner { sender })
-}
-
-impl ArcWake for Task {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        arc_self.sender.send(arc_self.clone()).unwrap();
-    }
-}
-
-impl Executor {
-    fn block_on<F>(&mut self, f: F) -> F::Output
-    where
-        F: Future,
-    {
-        pin_mut!(f);
-
-        let mut cx = Context::from_waker(futures::task::noop_waker_ref());
-
-        loop {
-            match Pin::new(&mut f).poll(&mut cx) {
-                Poll::Ready(val) => return val,
-                Poll::Pending => {}
-            }
-        }
-    }
-}
-
 fn main() {
-    let (mut executor, _spawner) = create_executor();
+    let (mut executor, _spawner) = naive::Executor::new();
 
     /*spawner.spawn(async {
         println!("Hello from the future!");
