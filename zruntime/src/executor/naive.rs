@@ -1,54 +1,19 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::{
-        mpsc::{sync_channel, Receiver, Sender, SyncSender},
-        Arc, Mutex,
-    },
+    sync::mpsc::{sync_channel, Receiver},
     task::{Context, Poll},
 };
 
-use futures::{future::BoxFuture, pin_mut, task::ArcWake, FutureExt};
+use futures::pin_mut;
 
 pub struct Executor {
-    receiver: Receiver<Arc<Task>>,
-}
-
-pub struct Spawner {
-    sender: SyncSender<Arc<Task>>,
-}
-
-impl Spawner {
-    pub fn spawn<F>(&self, f: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        let future = Mutex::new(Some(f.boxed()));
-        let task = Arc::new(Task {
-            future,
-            sender: self.sender.clone(),
-        });
-
-        self.sender.send(task).unwrap();
-    }
-}
-
-struct Task {
-    future: Mutex<Option<BoxFuture<'static, ()>>>,
-
-    sender: SyncSender<Arc<Task>>,
-}
-
-impl ArcWake for Task {
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        arc_self.sender.send(arc_self.clone()).unwrap();
-    }
+    tasks: Vec<Task>,
 }
 
 impl Executor {
-    pub fn new() -> (Executor, Spawner) {
-        let (sender, receiver) = sync_channel(0);
-        (Executor { receiver }, Spawner { sender })
+    pub fn new() -> Executor {
+        Executor { tasks: Vec::new() }
     }
 
     pub fn block_on<F>(&mut self, f: F) -> F::Output
@@ -66,4 +31,32 @@ impl Executor {
             }
         }
     }
+
+    pub fn spawn<F>(&mut self, future: F) -> TaskHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+    {
+        let (sender, receiver) = sync_channel(0);
+        let future = Box::pin(async move {
+            let res = future.await;
+            sender.send(res).unwrap();
+        });
+        self.tasks.push(Task { future });
+
+        TaskHandle { receiver }
+    }
+}
+
+pub struct TaskHandle<Ret> {
+    receiver: Receiver<Ret>,
+}
+
+impl<Ret> TaskHandle<Ret> {
+    pub fn join(self) -> Ret {
+        self.receiver.recv().unwrap()
+    }
+}
+
+struct Task {
+    future: Pin<Box<dyn Future<Output = ()>>>,
 }
