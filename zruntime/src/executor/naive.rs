@@ -1,7 +1,7 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::mpsc::{sync_channel, Receiver},
+    sync::mpsc::{channel, Receiver},
     task::{Context, Poll},
 };
 
@@ -36,7 +36,7 @@ impl Executor {
     where
         F: Future + Send + 'static,
     {
-        let (sender, receiver) = sync_channel(0);
+        let (sender, receiver) = channel();
         let future = Box::pin(async move {
             let res = future.await;
             sender.send(res).unwrap();
@@ -44,6 +44,12 @@ impl Executor {
         self.tasks.push(Task { future });
 
         TaskHandle { receiver }
+    }
+
+    pub fn run(&mut self) {
+        while let Some(task) = self.tasks.pop() {
+            self.block_on(task.future);
+        }
     }
 }
 

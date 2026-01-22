@@ -1,10 +1,6 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::{
-        mpsc::{sync_channel, Receiver, Sender, SyncSender},
-        Arc, Mutex,
-    },
     task::{Context, Poll},
 };
 
@@ -30,14 +26,16 @@ fn main() {
     let mut executor = naive::Executor::new();
 
     let handle = executor.spawn(async {
-        println!("Hello from the future!");
+        println!("spawned task: Hello!");
     });
 
     executor.block_on(async {
-        println!("Hello from the executor!");
+        println!("blocked_on future: Hello!");
     });
     let num = executor.block_on(give_me_u32());
     println!("Received number: {}", num);
+
+    executor.run();
 
     handle.join();
 }
