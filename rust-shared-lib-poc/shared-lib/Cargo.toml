@@ -1,0 +1,13 @@
+[package]
+name = "shared-lib"
+version = "0.1.0"
+edition = "2021"
+description = "Shared library that re-exports serde and tokio"
+
+[lib]
+crate-type = ["dylib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }

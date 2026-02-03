@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+    "shared-lib",
+    "bin-hello",
+    "bin-serialize",
+    "bin-async-task",
+]
+
+[workspace.dependencies]
+# Heavy dependencies - bundled in shared library
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+
+# Shared library - binaries use this directly
+shared-lib = { path = "shared-lib" }
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+strip = true
+# Note: LTO is incompatible with dynamic linking
