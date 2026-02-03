@@ -1,20 +1,21 @@
 //! Async task demo using the shared library.
+//!
+//! Uses tokio from the shared library dylib at runtime.
 
 use std::time::Duration;
-use shared_lib::tokio;
 
 #[tokio::main]
 async fn main() {
     println!("=== Async Task Binary ===\n");
 
-    // Spawn concurrent tasks
     let h1 = tokio::spawn(async {
         tokio::time::sleep(Duration::from_millis(50)).await;
-        "Task 1 done"
+        "Task 1 completed"
     });
+
     let h2 = tokio::spawn(async {
         tokio::time::sleep(Duration::from_millis(30)).await;
-        "Task 2 done"
+        "Task 2 completed"
     });
 
     let (r1, r2) = tokio::join!(h1, h2);

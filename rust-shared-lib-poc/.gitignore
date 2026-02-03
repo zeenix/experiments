@@ -1,2 +1,7 @@
 /target/
-Cargo.lock
+/build/
+/builddir/
+# Ignore downloaded subprojects but keep wrap files and packagefiles
+/subprojects/*
+!/subprojects/*.wrap
+!/subprojects/packagefiles/

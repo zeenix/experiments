@@ -9,9 +9,11 @@ members = [
 
 [workspace.dependencies]
 # Heavy dependencies - bundled in shared library
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
+# Pin to versions compatible with meson's cargo subproject support
+# (serde 1.0.228+ uses serde_core which requires build.rs)
+serde = { version = "=1.0.210", features = ["derive"] }
+serde_json = "=1.0.100"
+tokio = { version = "=1.40.0", features = ["rt", "rt-multi-thread", "time", "macros"] }
 
 # Shared library - binaries use this directly
 shared-lib = { path = "shared-lib" }

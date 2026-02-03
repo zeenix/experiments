@@ -1,9 +1,10 @@
 //! Simple hello binary demonstrating shared crate usage.
+//!
+//! Uses serde and serde_json from the shared library dylib at runtime.
 
-use shared_lib::serde::{Serialize, Deserialize};
+use serde_derive::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "shared_lib::serde")]
 struct Config {
     name: String,
     value: i64,
@@ -19,6 +20,6 @@ fn main() {
         enabled: true,
     };
 
-    let json = shared_lib::serde_json::to_string_pretty(&config).unwrap();
+    let json = serde_json::to_string_pretty(&config).unwrap();
     println!("Config as JSON:\n{}", json);
 }

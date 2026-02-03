@@ -1,9 +1,10 @@
 //! Serialization demo using the shared library.
+//!
+//! Uses serde and serde_json from the shared library dylib at runtime.
 
-use shared_lib::serde::{Serialize, Deserialize};
+use serde_derive::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "shared_lib::serde")]
 struct ServiceUnit {
     name: String,
     #[serde(rename = "type")]
@@ -21,10 +22,10 @@ fn main() {
     };
 
     println!("ServiceUnit as JSON:");
-    println!("{}\n", shared_lib::serde_json::to_string_pretty(&unit).unwrap());
+    println!("{}\n", serde_json::to_string_pretty(&unit).unwrap());
 
     // Deserialization
     let json = r#"{"name":"parsed.service","type":"oneshot","dependencies":[]}"#;
-    let parsed: ServiceUnit = shared_lib::serde_json::from_str(json).unwrap();
+    let parsed: ServiceUnit = serde_json::from_str(json).unwrap();
     println!("Parsed: {:?}", parsed);
 }

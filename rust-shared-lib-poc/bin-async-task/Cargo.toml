@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 shared-lib = { workspace = true }
+# Use tokio directly with explicit features for meson to read
+tokio = { version = "=1.40.0", features = ["rt", "rt-multi-thread", "time", "macros"] }

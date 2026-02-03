@@ -1,0 +1,10 @@
+[wrap-file]
+method = cargo
+directory = proc-macro2-1.0.106
+source_url = https://crates.io/api/v1/crates/proc-macro2/1.0.106/download
+source_filename = proc-macro2-1.0.106.tar.gz
+source_hash = 8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934
+patch_directory = proc-macro2-1.0.106
+
+[provide]
+dependency_names = proc-macro2-1-rs

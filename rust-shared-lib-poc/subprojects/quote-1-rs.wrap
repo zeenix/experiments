@@ -1,0 +1,10 @@
+[wrap-file]
+method = cargo
+directory = quote-1.0.44
+source_url = https://crates.io/api/v1/crates/quote/1.0.44/download
+source_filename = quote-1.0.44.tar.gz
+source_hash = 21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4
+patch_directory = quote-1.0.44
+
+[provide]
+dependency_names = quote-1-rs
