@@ -1,0 +1,10 @@
+[wrap-file]
+method = cargo
+directory = tokio-macros-2.4.0
+source_url = https://crates.io/api/v1/crates/tokio-macros/2.4.0/download
+source_filename = tokio-macros-2.4.0.tar.gz
+source_hash = 693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752
+patch_directory = tokio-macros-2.4.0
+
+[provide]
+dependency_names = tokio-macros-2-rs
