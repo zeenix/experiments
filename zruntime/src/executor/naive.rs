@@ -15,8 +15,12 @@ impl Executor {
     pub fn new() -> Executor {
         Executor { tasks: Vec::new() }
     }
+}
 
-    pub fn block_on<F>(&mut self, f: F) -> F::Output
+impl super::Executor for Executor {
+    type TaskHandle<O> = TaskHandle<O>;
+
+    fn block_on<F>(&mut self, f: F) -> F::Output
     where
         F: Future,
     {
@@ -32,7 +36,7 @@ impl Executor {
         }
     }
 
-    pub fn spawn<F>(&mut self, future: F) -> TaskHandle<F::Output>
+    fn spawn<F>(&mut self, future: F) -> TaskHandle<F::Output>
     where
         F: Future + Send + 'static,
     {
@@ -46,7 +50,7 @@ impl Executor {
         TaskHandle { receiver }
     }
 
-    pub fn run(&mut self) {
+    fn run(&mut self) {
         while let Some(task) = self.tasks.pop() {
             self.block_on(task.future);
         }
@@ -57,8 +61,10 @@ pub struct TaskHandle<Ret> {
     receiver: Receiver<Ret>,
 }
 
-impl<Ret> TaskHandle<Ret> {
-    pub fn join(self) -> Ret {
+impl<Ret> super::TaskHandle for TaskHandle<Ret> {
+    type Output = Ret;
+
+    fn join(self) -> Ret {
         self.receiver.recv().unwrap()
     }
 }

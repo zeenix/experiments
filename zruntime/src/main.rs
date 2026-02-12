@@ -6,7 +6,7 @@ use std::{
 
 mod executor;
 
-use executor::naive;
+use executor::{naive, Executor, TaskHandle};
 
 struct MyFuture(u32);
 
@@ -23,8 +23,13 @@ async fn give_me_u32() -> u32 {
 }
 
 fn main() {
-    let mut executor = naive::Executor::new();
+    run(naive::Executor::new());
+}
 
+fn run<R>(mut executor: R)
+where
+    R: Executor,
+{
     let handle = executor.spawn(async {
         println!("spawned task: Hello!");
     });
