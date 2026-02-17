@@ -1,6 +1,7 @@
 use std::future::Future;
 
 pub mod naive;
+pub mod smarter;
 
 pub trait Executor {
     type TaskHandle<O>: TaskHandle<Output = O>;

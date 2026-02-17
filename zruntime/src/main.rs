@@ -8,6 +8,8 @@ mod executor;
 
 use executor::{naive, Executor, TaskHandle};
 
+use crate::executor::smarter;
+
 struct MyFuture(u32);
 
 impl Future for MyFuture {
@@ -23,7 +25,10 @@ async fn give_me_u32() -> u32 {
 }
 
 fn main() {
+    println!("Running naive executor..");
     run(naive::Executor::new());
+    println!("Running smarter executor..");
+    run(smarter::Executor::new());
 }
 
 fn run<R>(mut executor: R)
