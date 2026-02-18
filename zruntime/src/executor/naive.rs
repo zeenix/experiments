@@ -41,7 +41,7 @@ impl super::Executor for Executor {
 
     fn spawn<F>(&mut self, future: F) -> TaskHandle<F::Output>
     where
-        F: Future + Send + 'static,
+        F: Future + 'static,
     {
         let (sender, receiver) = channel();
         let future = Box::pin(async move {

@@ -12,7 +12,7 @@ pub trait Executor {
 
     fn spawn<F>(&mut self, future: F) -> Self::TaskHandle<F::Output>
     where
-        F: Future + Send + 'static;
+        F: Future + 'static;
 
     fn run(&mut self);
 }
