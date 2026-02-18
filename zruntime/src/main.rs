@@ -25,7 +25,10 @@ where
     let handle1 = executor.spawn(async move {
         let mut buf = [0; 50];
         let len = rx.read(&mut buf).await.unwrap();
-        println!("\t{}", from_utf8(&buf[..len]).unwrap());
+        println!(
+            "\tMessage from Uncle Leo: {}",
+            from_utf8(&buf[..len]).unwrap()
+        );
     });
 
     let handle2 = executor.spawn(async move {
