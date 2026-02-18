@@ -1,6 +1,7 @@
 use std::{future::Future, io::Result};
 
 pub mod naive;
+pub mod smarter;
 
 pub trait UnixStream: Sized {
     fn pipe() -> Result<(Self, Self)>;
