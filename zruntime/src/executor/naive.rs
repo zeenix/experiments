@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     future::Future,
     pin::Pin,
     sync::mpsc::{channel, Receiver},
@@ -8,12 +9,14 @@ use std::{
 use futures::pin_mut;
 
 pub struct Executor {
-    tasks: Vec<Task>,
+    tasks: VecDeque<Task>,
 }
 
 impl Executor {
     pub fn new() -> Executor {
-        Executor { tasks: Vec::new() }
+        Executor {
+            tasks: VecDeque::new(),
+        }
     }
 }
 
@@ -45,13 +48,13 @@ impl super::Executor for Executor {
             let res = future.await;
             sender.send(res).unwrap();
         });
-        self.tasks.push(Task { future });
+        self.tasks.push_back(Task { future });
 
         TaskHandle { receiver }
     }
 
     fn run(&mut self) {
-        while let Some(task) = self.tasks.pop() {
+        while let Some(task) = self.tasks.pop_front() {
             self.block_on(task.future);
         }
     }
