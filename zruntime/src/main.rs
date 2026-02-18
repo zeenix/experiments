@@ -9,7 +9,7 @@ mod executor;
 mod unix_stream;
 
 use executor::{naive, smarter, Executor, TaskHandle};
-use unix_stream::{naive as naive_unix, UnixStream};
+use unix_stream::{naive as naive_unix, smarter as smarter_unix, UnixStream};
 
 struct MyFuture(u32);
 
@@ -26,20 +26,21 @@ async fn give_me_u32() -> u32 {
 }
 
 fn main() {
-    println!("Running naive executor..");
-    run(naive::Executor::new());
+    println!("Running smarter executor..");
+    let (tx, rx) = smarter_unix::UnixStream::pipe().unwrap();
+    run(smarter::Executor::new(), tx, rx);
     println!("");
 
-    println!("Running smarter executor..");
-    run(smarter::Executor::new());
+    println!("Running naive executor..");
+    let (tx, rx) = naive_unix::UnixStream::pipe().unwrap();
+    run(naive::Executor::new(), tx, rx);
 }
 
-fn run<R>(mut executor: R)
+fn run<R, U>(mut executor: R, mut tx: U, mut rx: U)
 where
     R: Executor,
+    U: UnixStream + Send + Sync + 'static,
 {
-    let (mut tx, mut rx) = naive_unix::UnixStream::pipe().unwrap();
-
     let handle1 = executor.spawn(async move {
         let mut buf = [0; 50];
         let len = rx.read(&mut buf).await.unwrap();
