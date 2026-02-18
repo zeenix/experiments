@@ -6,8 +6,6 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::pin_mut;
-
 pub struct Executor {
     tasks: VecDeque<Task>,
 }
@@ -27,7 +25,7 @@ impl super::Executor for Executor {
     where
         F: Future,
     {
-        pin_mut!(f);
+        futures::pin_mut!(f);
 
         let mut cx = Context::from_waker(futures::task::noop_waker_ref());
 
