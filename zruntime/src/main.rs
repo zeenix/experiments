@@ -1,14 +1,15 @@
 use std::{
     future::Future,
     pin::Pin,
+    str::from_utf8,
     task::{Context, Poll},
 };
 
 mod executor;
+mod unix_stream;
 
-use executor::{naive, Executor, TaskHandle};
-
-use crate::executor::smarter;
+use executor::{naive, smarter, Executor, TaskHandle};
+use unix_stream::{naive as naive_unix, UnixStream};
 
 struct MyFuture(u32);
 
@@ -27,6 +28,8 @@ async fn give_me_u32() -> u32 {
 fn main() {
     println!("Running naive executor..");
     run(naive::Executor::new());
+    println!("");
+
     println!("Running smarter executor..");
     run(smarter::Executor::new());
 }
@@ -35,17 +38,26 @@ fn run<R>(mut executor: R)
 where
     R: Executor,
 {
-    let handle = executor.spawn(async {
-        println!("spawned task: Hello!");
+    let (mut tx, mut rx) = naive_unix::UnixStream::pipe().unwrap();
+
+    let handle1 = executor.spawn(async move {
+        let mut buf = [0; 50];
+        let len = rx.read(&mut buf).await.unwrap();
+        println!("\t{}", from_utf8(&buf[..len]).unwrap());
     });
 
-    executor.block_on(async {
-        println!("blocked_on future: Hello!");
+    let handle2 = executor.spawn(async move {
+        let msg = b"Hellllo! Jerry! Hellllo!";
+        let written = tx.write(msg).await.unwrap();
+        assert_eq!(written, msg.len());
     });
+
+    executor.block_on(async move {});
     let num = executor.block_on(give_me_u32());
-    println!("Received number: {}", num);
+    println!("\tReceived number: {}", num);
 
     executor.run();
 
-    handle.join();
+    handle1.join();
+    handle2.join();
 }
