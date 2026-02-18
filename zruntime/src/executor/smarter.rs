@@ -61,8 +61,19 @@ impl super::Executor for Executor {
     }
 
     fn run(&mut self) {
-        while let Some(task) = self.tasks.pop_front() {
-            self.block_on(task.future);
+        let waker = Arc::new(ThreadWaker(thread::current())).into();
+        let mut cx = Context::from_waker(&waker);
+
+        while !self.tasks.is_empty() {
+            self.tasks
+                .retain_mut(|task| match Pin::new(&mut task.future).poll(&mut cx) {
+                    Poll::Ready(_) => false, // task done, remove it.
+                    Poll::Pending => true,   // task still pending, keep it.
+                });
+
+            if !self.tasks.is_empty() {
+                park();
+            }
         }
     }
 }
