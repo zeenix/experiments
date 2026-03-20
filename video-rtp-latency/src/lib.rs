@@ -23,7 +23,9 @@ pub fn setup_clock(name: &str) -> gst::Clock {
 
         gst_net::PtpClock::init(None, &iface_refs).map_err(|e| format!("init: {e}"))?;
         let ptp = gst_net::PtpClock::new(Some(name), 0).map_err(|e| format!("create: {e}"))?;
-        ptp.wait_for_sync(gst::ClockTime::from_seconds(10))
+        // PTP sync needs several announce/sync/delay_req round-trips; 30 s
+        // gives plenty of headroom even on slow networks.
+        ptp.wait_for_sync(gst::ClockTime::from_seconds(30))
             .map_err(|e| format!("sync: {e}"))?;
         println!("Using PTP clock (domain 0).");
         Ok(ptp.upcast())
