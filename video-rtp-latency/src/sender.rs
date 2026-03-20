@@ -9,17 +9,9 @@
 //   base_time  = 0      (running_time = clock_time - 0 = clock_time)
 // A live source sets PTS ≈ running_time, so PTS ≈ clock_time.
 //
-// Clock selection:
-//   - Primary:  PTP clock (domain 0) for cross-host synchronization.
-//   - Fallback: System monotonic clock (works for same-host testing only).
-//
-// PTP setup requirements (for cross-host use):
-//   1. A PTP grand master must be reachable on the network.
-//      For same-host testing, install linuxptp and run:
-//        sudo ptp4l -i <iface> -m -S --masterOnly 1
-//   2. gst-ptp-helper must be able to bind to PTP ports (319/320). Either:
-//      - The binary has CAP_NET_BIND_SERVICE on a non-nosuid filesystem, or
-//      - The sysctl net.ipv4.ip_unprivileged_port_start is set to 0.
+// Clock: A real-time SystemClock (CLOCK_REALTIME). When both hosts have
+// their system clocks PTP-synchronized (e.g. ptp4l + phc2sys, or chrony
+// with PTP), the wall-clock time is identical on both machines.
 
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -36,7 +28,7 @@ use video_rtp_latency::{hdr_ext, setup_clock};
 fn main() -> Result<()> {
     gst::init().context("Failed to initialize GStreamer")?;
 
-    let clock = setup_clock("sender-ptp");
+    let clock = setup_clock();
 
     let pipeline = gst::Pipeline::new();
     pipeline.use_clock(Some(&clock));

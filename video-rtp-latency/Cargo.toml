@@ -17,7 +17,6 @@ path = "src/lib.rs"
 
 [dependencies]
 gstreamer = "0.23"
-gstreamer-net = "0.23"
 gstreamer-rtp = { version = "0.23", features = ["v1_20"] }
 anyhow = "1"
 ctrlc = "2"

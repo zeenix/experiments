@@ -12,7 +12,7 @@
 //   latency = clock_now - sender_pts
 //
 // Clock and timing: same setup as sender (start_time=None, base_time=0,
-// PTP-or-system clock).
+// real-time system clock).
 
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -29,7 +29,7 @@ use video_rtp_latency::{hdr_ext, setup_clock};
 fn main() -> Result<()> {
     gst::init().context("Failed to initialize GStreamer")?;
 
-    let clock = setup_clock("receiver-ptp");
+    let clock = setup_clock();
 
     let pipeline = gst::Pipeline::new();
     pipeline.use_clock(Some(&clock));
