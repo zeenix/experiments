@@ -22,29 +22,9 @@ use std::sync::{
 use anyhow::{Context, Result};
 use gstreamer as gst;
 use gstreamer::prelude::*;
-use gstreamer_net as gst_net;
 use gstreamer_rtp::prelude::*;
 
-use video_rtp_latency::hdr_ext;
-
-/// Try to create a PTP clock. If any step fails (init, creation, or sync),
-/// fall back to the system monotonic clock with a warning.
-fn setup_clock(name: &str) -> gst::Clock {
-    let ptp_result: std::result::Result<gst::Clock, String> = (|| {
-        gst_net::PtpClock::init(None, &[]).map_err(|e| format!("init: {e}"))?;
-        let ptp = gst_net::PtpClock::new(Some(name), 0).map_err(|e| format!("create: {e}"))?;
-        ptp.wait_for_sync(gst::ClockTime::from_seconds(10))
-            .map_err(|e| format!("sync: {e}"))?;
-        println!("Using PTP clock (domain 0).");
-        Ok(ptp.upcast())
-    })();
-
-    ptp_result.unwrap_or_else(|err| {
-        eprintln!("PTP unavailable ({err}), using system clock.");
-        eprintln!("Latency measurement still works for same-host testing.");
-        gst::SystemClock::obtain().upcast()
-    })
-}
+use video_rtp_latency::{hdr_ext, setup_clock};
 
 fn main() -> Result<()> {
     gst::init().context("Failed to initialize GStreamer")?;
