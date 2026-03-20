@@ -1,0 +1,23 @@
+[package]
+name = "video-rtp-latency"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "sender"
+path = "src/sender.rs"
+
+[[bin]]
+name = "receiver"
+path = "src/receiver.rs"
+
+[lib]
+name = "video_rtp_latency"
+path = "src/lib.rs"
+
+[dependencies]
+gstreamer = "0.23"
+gstreamer-net = "0.23"
+gstreamer-rtp = { version = "0.23", features = ["v1_20"] }
+anyhow = "1"
+ctrlc = "2"
