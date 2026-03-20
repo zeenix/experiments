@@ -62,12 +62,14 @@ fn main() -> Result<()> {
         .build()
         .context("rtpvrawpay")?;
 
+    let host = std::env::var("RECEIVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let udpsink = gst::ElementFactory::make("udpsink")
-        .property("host", "127.0.0.1")
+        .property("host", &host)
         .property("port", 5004i32)
         .property("sync", false)
         .build()
         .context("udpsink")?;
+    println!("Sending to {host}:5004");
 
     // --- Attach custom RTP header extension to the payloader ---
     //
